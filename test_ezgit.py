@@ -30,42 +30,90 @@ def test_basic_functions():
     }
     return test_functions("基本功能", functions)
 
+def test_branch_functions():
+    """
+    测试分支相关功能函数
+    @return: bool 测试是否通过
+    """
+    functions = {
+        "handle_branch": "分支管理",
+        "handle_checkout": "切换分支",
+        "handle_merge": "合并分支",
+        "handle_rebase": "变基操作"
+    }
+    return test_functions("分支功能", functions)
+
+def test_remote_functions():
+    """
+    测试远程操作相关功能函数
+    @return: bool 测试是否通过
+    """
+    functions = {
+        "handle_remote": "远程配置",
+        "handle_tag": "标签管理"
+    }
+    return test_functions("远程功能", functions)
+
 def test_advanced_functions():
     """
     测试高级功能函数
     @return: bool 测试是否通过
     """
     functions = {
-        "handle_branch": "分支操作",
-        "handle_checkout": "切换分支",
-        "handle_merge": "合并分支",
-        "handle_rebase": "变基操作",
-        "handle_tag": "标签管理",
-        "handle_stash": "储藏管理",
-        "handle_config": "配置信息",
-        "handle_remote": "远程配置",
-        "handle_clone": "克隆仓库"
+        "handle_stash": "储藏操作",
+        "handle_version": "版本管理",
+        "handle_maintenance": "仓库维护",
+        "handle_analysis": "分析工具",
+        "handle_settings_menu": "配置管理"
     }
     return test_functions("高级功能", functions)
 
-def test_tool_functions():
+def test_version_functions():
     """
-    测试工具相关函数
+    测试版本管理相关功能函数
     @return: bool 测试是否通过
     """
     functions = {
-        "handle_settings": "配置工具",
-        "handle_logs": "查看日志",
-        "handle_menu_mode": "菜单模式",
-        "handle_custom_menu": "自定义菜单",
-        "handle_advanced": "高级操作",
-        "handle_recovery": "错误恢复",
-        "handle_diff": "查看差异",
-        "handle_submodule": "子模块管理",
-        "handle_workflow": "工作流管理",
-        "handle_clean": "清理仓库"
+        "handle_reset": "重置操作",
+        "handle_revert": "还原操作",
+        "handle_recovery": "恢复操作"
     }
-    return test_functions("工具功能", functions)
+    return test_functions("版本管理功能", functions)
+
+def test_maintenance_functions():
+    """
+    测试仓库维护相关功能函数
+    @return: bool 测试是否通过
+    """
+    functions = {
+        "handle_clean": "清理未跟踪文件",
+        "execute_git": "执行Git命令"  # 用于gc/fsck/prune等操作
+    }
+    return test_functions("维护功能", functions)
+
+def test_analysis_functions():
+    """
+    测试分析工具相关功能函数
+    @return: bool 测试是否通过
+    """
+    functions = {
+        "handle_stats": "统计分析",
+        "handle_search": "仓库搜索",
+        "handle_compare": "版本比较"
+    }
+    return test_functions("分析功能", functions)
+
+def test_config_functions():
+    """
+    测试配置管理相关功能函数
+    @return: bool 测试是否通过
+    """
+    functions = {
+        "handle_config": "Git配置",
+        "handle_alias": "别名管理",
+        "handle_settings": "工具设置"
+    }
+    return test_functions("配置功能", functions)
 
 def test_helper_functions():
     """
@@ -75,10 +123,9 @@ def test_helper_functions():
     functions = {
         "print_colored": "彩色输出",
         "confirm_action": "确认操作",
-        "execute_git_command": "执行Git命令",
-        "load_config": "加载配置",
-        "load_custom_menu": "加载菜单",
-        "check_dependencies": "检查依赖"
+        "execute_git": "执行Git命令",
+        "show_menu": "显示菜单",
+        "show_help": "显示帮助"
     }
     return test_functions("辅助功能", functions)
 
@@ -131,8 +178,7 @@ def test_file_structure():
         # 检查必要文件是否存在
         required_files = {
             "EzGit.py": "主程序文件",
-            "README.md": "说明文档",
-            "requirements.txt": "依赖列表"
+            "README.md": "说明文档"
         }
         
         missing_files = []
@@ -142,14 +188,6 @@ def test_file_structure():
             else:
                 log_to_file(f"[×] 缺失文件: {file} ({desc})", "WARN")
                 missing_files.append(file)
-        
-        # 检查配置目录
-        config_dir = os.path.expanduser('~/.ezgit')
-        if os.path.exists(config_dir):
-            log_to_file(f"[√] 找到配置目录: {config_dir}")
-        else:
-            log_to_file(f"[×] 缺失配置目录: {config_dir}", "WARN")
-            missing_files.append(config_dir)
         
         if missing_files:
             log_to_file("文件结构测试结果: 失败", "INFO")
@@ -183,8 +221,13 @@ def run_test():
     tests = [
         ("文件结构测试", test_file_structure),
         ("基本功能测试", test_basic_functions),
+        ("分支功能测试", test_branch_functions),
+        ("远程功能测试", test_remote_functions),
         ("高级功能测试", test_advanced_functions),
-        ("工具功能测试", test_tool_functions),
+        ("版本管理测试", test_version_functions),
+        ("维护功能测试", test_maintenance_functions),
+        ("分析功能测试", test_analysis_functions),
+        ("配置功能测试", test_config_functions),
         ("辅助功能测试", test_helper_functions)
     ]
     

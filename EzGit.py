@@ -298,22 +298,21 @@ def handle_clone():
 
 def handle_config():
     """
-    Git配置管理
+    处理 Git 配置
     @return: None
     """
     while True:
         print("\n" + "="*40)
-        print_colored("Git 配置管理", "cyan")
+        print_colored("Git 配置", "cyan")
         print("="*40)
-        
-        print("\n1. 查看当前配置")
-        print("2. 设置用户名和邮箱")
+        print("1. 查看所有配置")
+        print("2. 设置用户信息")
         print("3. 设置默认编辑器")
         print("4. 设置默认分支名")
-        print("\n0. 返回上级菜单")
-        
+        print("\n0. 返回主菜单")
+
         choice = input("\n请选择 (0-4): ")
-        
+
         if choice == "0":
             return
         elif choice == "1":
@@ -321,21 +320,22 @@ def handle_config():
         elif choice == "2":
             username = input("\n请输入Git用户名: ")
             email = input("请输入Git邮箱: ")
-            execute_git(['config', '--global', 'user.name', username])
-            execute_git(['config', '--global', 'user.email', email])
-            print_colored("\nGit用户信息配置完成！", "green")
+            if username:
+                execute_git(['config', '--global', 'user.name', username])
+            if email:
+                execute_git(['config', '--global', 'user.email', email])
         elif choice == "3":
             editor = input("\n请输入编辑器命令(如 vim, nano): ")
-            execute_git(['config', '--global', 'core.editor', editor])
-            print_colored("\n默认编辑器设置完成！", "green")
+            if editor:
+                execute_git(['config', '--global', 'core.editor', editor])
         elif choice == "4":
-            branch = input("\n请输入默认分支名(如 main, master): ")
-            execute_git(['config', '--global', 'init.defaultBranch', branch])
-            print_colored("\n默认分支名设置完成！", "green")
+            branch = input("\n请输入默认分支名(如 main): ")
+            if branch:
+                execute_git(['config', '--global', 'init.defaultBranch', branch])
         else:
-            print_colored("\n无效的选择，请重试", "yellow")
+            print_colored("无效的选择", "yellow")
             continue
-        
+
         input("\n按回车键继续...")
 
 def handle_remote():
@@ -821,73 +821,37 @@ def handle_recovery():
         print("\n" + "="*40)
         print_colored("恢复操作", "cyan")
         print("="*40)
-        print("1. 恢复文件的历史版本")
-        print("2. 恢复已删除的文件")
-        print("3. 撤销未暂存的修改")
-        print("4. 撤销已暂存的修改")
-        print("\n说明: ")
-        print("- 恢复历史版本：将文件恢复到之前的某个版本")
-        print("- 恢复已删除：找回已经删除的文件")
-        print("- 撤销未暂存：放弃对文件的修改")
-        print("- 撤销已暂存：将文件从暂存区移出")
-        print("\n当前目录:", os.getcwd())
-        print("仓库根目录:", get_repo_root() or "未找到Git仓库")
-        print("\n文件路径说明:")
-        print("1. 相对路径: 相对于当前目录，如 'src/main.py'")
-        print("2. 绝对路径: 完整的系统路径，如 '/home/user/project/src/main.py'")
-        print("3. 仓库路径: 相对于仓库根目录，如 'main.py'")
+        print("1. 恢复工作区文件")
+        print("2. 恢复暂存区文件")
+        print("3. 恢复已删除的文件")
         print("\n0. 返回主菜单")
-        
-        choice = input("\n请选择 (0-4): ")
-        
+
+        choice = input("\n请选择 (0-3): ")
+
         if choice == "0":
             return
         elif choice == "1":
-            # 恢复文件的历史版本
-            print("\n可用的文件列表:")
-            execute_git(['ls-files'])  # 显示仓库中的所有文件
-            file = input("\n请输入要恢复的文件路径(相对/绝对路径): ")
-            file = get_relative_path(file)
-            if os.path.exists(file) or input("文件不存在，是否继续？(y/N): ").lower() == 'y':
-                print("\n文件的历史版本:")
-                execute_git(['log', '--oneline', '--', file])
-                commit = input("\n请输入要恢复的版本(commit id): ")
-                if commit:
-                    if execute_git(['checkout', commit, '--', file]):
-                        print_colored(f"\n✓ 已将 {file} 恢复到版本 {commit}", "green")
+            file = input("\n请输入要恢复的文件路径(回车恢复所有): ")
+            if file:
+                execute_git(['restore', file])
+            else:
+                execute_git(['restore', '.'])
         elif choice == "2":
-            # 恢复已删除的文件
-            print("\n已删除的文件列表:")
-            execute_git(['ls-files', '-d'])
-            file = input("\n请输入要恢复的文件路径: ")
-            if execute_git(['checkout', 'HEAD', '--', file]):
-                print_colored(f"\n✓ 已恢复文件 {file}", "green")
+            file = input("\n请输入要恢复的文件路径(回车恢复所有): ")
+            if file:
+                execute_git(['restore', '--staged', file])
+            else:
+                execute_git(['restore', '--staged', '.'])
         elif choice == "3":
-            # 撤销未暂存的修改
-            print("\n已修改的文件:")
-            execute_git(['diff', '--name-only'])
-            file = input("\n请输入要撤销的文件路径(回车撤销所有): ")
+            print("\n查找已删除的文件...")
+            execute_git(['ls-files', '--deleted'])
+            file = input("\n请输入要恢复的文件路径: ")
             if file:
-                if execute_git(['checkout', '--', file]):
-                    print_colored(f"\n✓ 已撤销对 {file} 的修改", "green")
-            else:
-                if execute_git(['checkout', '.']):
-                    print_colored("\n✓ 已撤销所有未暂存的修改", "green")
-        elif choice == "4":
-            # 撤销已暂存的修改
-            print("\n已暂存的文件:")
-            execute_git(['diff', '--cached', '--name-only'])
-            file = input("\n请输入要撤销的文件路径(回车撤销所有): ")
-            if file:
-                if execute_git(['reset', 'HEAD', file]):
-                    print_colored(f"\n✓ 已将 {file} 从暂存区移出", "green")
-            else:
-                if execute_git(['reset', 'HEAD']):
-                    print_colored("\n✓ 已撤销所有暂存", "green")
+                execute_git(['checkout', '--', file])
         else:
             print_colored("无效的选择", "yellow")
             continue
-        
+
         input("\n按回车键继续...")
 
 def check_update():
@@ -1010,150 +974,51 @@ def check_dependencies():
 
 def handle_settings():
     """
-    处理工具配置设置
+    处理工具设置
     @return: None
     """
     while True:
         print("\n" + "="*40)
-        print_colored("工具配置设置", "cyan")
+        print_colored("工具设置", "cyan")
         print("="*40)
-        print("1. 查看当前配置")
-        print("2. 修改主题颜色")
-        print("3. 设置默认分支")
-        print("4. 设置自动推送")
-        print("5. 设置作者信息")
+        print("1. 显示设置")
+        print("2. 操作确认设置")
+        print("3. 输出颜色设置")
         print("\n0. 返回主菜单")
-        
-        choice = input("\n请选择 (0-5): ")
-        
-        config = load_config()
-        config_path = os.path.expanduser('~/.ezgit/config.json')
-        
+
+        choice = input("\n请选择 (0-3): ")
+
         if choice == "0":
             return
         elif choice == "1":
-            print("\n当前配置:")
-            print(f"主题: {config['theme']}")
-            print(f"默认分支: {config['default_branch']}")
-            print(f"自动推送: {'是' if config['auto_push'] else '否'}")
-            print(f"作者名称: {config['author']['name']}")
-            print(f"作者邮箱: {config['author']['email']}")
+            print("\n当前显示设置:")
+            print("1. 显示命令输出")
+            print("2. 显示错误信息")
+            print("3. 显示操作提示")
+            if input("\n是否修改设置？(y/N): ").lower() == 'y':
+                # 这里可以添加设置修改逻辑
+                pass
         elif choice == "2":
-            print("\n可用主题:")
-            print("1. default (默认)")
-            print("2. dark (深色)")
-            print("3. light (浅色)")
-            theme = input("\n请选择主题 (1-3): ")
-            themes = {
-                "1": "default",
-                "2": "dark",
-                "3": "light"
-            }
-            if theme in themes:
-                config['theme'] = themes[theme]
-                print_colored("\n主题已更新！", "green")
+            print("\n当前确认设置:")
+            print("1. 危险操作确认")
+            print("2. 批量操作确认")
+            if input("\n是否修改设置？(y/N): ").lower() == 'y':
+                # 这里可以添加设置修改逻辑
+                pass
         elif choice == "3":
-            branch = input("\n请输入默认分支名称 (如 main 或 master): ")
-            config['default_branch'] = branch
-            print_colored("\n默认分支已更新！", "green")
-        elif choice == "4":
-            auto_push = input("\n是否启用自动推送？(y/n): ").lower() == 'y'
-            config['auto_push'] = auto_push
-            print_colored("\n自动推送设置已更新！", "green")
-        elif choice == "5":
-            name = input("\n请输入作者名称: ")
-            email = input("请输入作者邮箱: ")
-            if name:
-                config['author']['name'] = name
-            if email:
-                config['author']['email'] = email
-            print_colored("\n作者信息已更新！", "green")
+            print("\n当前颜色设置:")
+            print("1. 成功消息: 绿色")
+            print("2. 警告消息: 黄色")
+            print("3. 错误消息: 红色")
+            print("4. 提示消息: 青色")
+            if input("\n是否修改设置？(y/N): ").lower() == 'y':
+                # 这里可以添加设置修改逻辑
+                pass
         else:
             print_colored("无效的选择", "yellow")
             continue
-            
-        # 保存配置
-        if choice in ["2", "3", "4", "5"]:
-            try:
-                with open(config_path, 'w', encoding='utf-8') as f:
-                    json.dump(config, f, indent=4)
-            except Exception as e:
-                print_colored(f"\n保存配置失败: {str(e)}", "red")
-        
+
         input("\n按回车键继续...")
-
-def load_custom_menu():
-    """
-    加载用户自定义菜单配置
-    @return: dict 自定义菜单配置
-    """
-    config_path = os.path.expanduser('~/.ezgit/menu_config.json')
-    default_menu = {
-        'mode': 'full',  # 'full' 或 'simple' 或 'custom'
-        'custom_menu': {
-            "常用操作": [
-                ("1", "查看状态", "git status"),
-                ("2", "暂存更改", "git add"),
-                ("3", "提交更改", "git commit"),
-                ("4", "推送更改", "git push"),
-                ("5", "拉取更新", "git pull")
-            ]
-        }
-    }
-    
-    try:
-        if os.path.exists(config_path):
-            with open(config_path, 'r', encoding='utf-8') as f:
-                config = json.load(f)
-                # 确保配置文件包含所有必要字段
-                if 'mode' not in config:
-                    config['mode'] = default_menu['mode']
-                if 'custom_menu' not in config:
-                    config['custom_menu'] = default_menu['custom_menu']
-                # 确保常用操作分类存在
-                if '常用操作' not in config['custom_menu']:
-                    config['custom_menu']['常用操作'] = default_menu['custom_menu']['常用操作']
-                return config
-        else:
-            os.makedirs(os.path.dirname(config_path), exist_ok=True)
-            with open(config_path, 'w', encoding='utf-8') as f:
-                json.dump(default_menu, f, indent=4)
-            return default_menu
-    except Exception as e:
-        print_colored(f"加载菜单配置失败: {str(e)}", "red")
-        return default_menu
-
-def handle_menu_mode():
-    """
-    处理菜单模式切换
-    @return: None
-    """
-    print_colored("\n=== 菜单模式设置 ===", "cyan")
-    print("1. 完整模式 (显示所有功能)")
-    print("2. 简单模式 (仅显示常用功能)")
-    print("3. 自定义模式 (使用自定义菜单)")
-    print("0. 返回主菜单")
-    
-    choice = input("\n请选择 (0-3): ")
-    
-    config_path = os.path.expanduser('~/.ezgit/menu_config.json')
-    menu_config = load_custom_menu()
-    
-    if choice == "1":
-        menu_config['mode'] = 'full'
-    elif choice == "2":
-        menu_config['mode'] = 'simple'
-    elif choice == "3":
-        menu_config['mode'] = 'custom'
-    elif choice == "0":
-        return
-    
-    try:
-        with open(config_path, 'w', encoding='utf-8') as f:
-            json.dump(menu_config, f, indent=4)
-        print_colored("\n菜单模式已更新！", "green")
-    except Exception as e:
-        print_colored(f"\n保存配置失败: {str(e)}", "red")
 
 def handle_custom_menu():
     """
@@ -2225,6 +2090,47 @@ def handle_settings_menu():
             handle_alias()
         elif choice == "3":
             handle_settings()
+        else:
+            print_colored("无效的选择", "yellow")
+            continue
+
+        input("\n按回车键继续...")
+
+def handle_reset():
+    """
+    处理重置操作
+    @return: None
+    """
+    while True:
+        print("\n" + "="*40)
+        print_colored("重置操作", "cyan")
+        print("="*40)
+        print("1. 软重置 (保留工作区和暂存区)")
+        print("2. 混合重置 (保留工作区，清空暂存区)")
+        print("3. 硬重置 (完全重置到指定版本)")
+        print("\n0. 返回主菜单")
+
+        choice = input("\n请选择 (0-3): ")
+
+        if choice == "0":
+            return
+        elif choice in ["1", "2", "3"]:
+            print("\n当前分支的提交历史:")
+            execute_git(['log', '--oneline', '-10'])
+            
+            commit = input("\n请输入要重置到的提交ID (输入 HEAD^ 回退一个版本): ")
+            if not commit:
+                continue
+                
+            if choice == "1":
+                if confirm_action("确定要执行软重置吗？这将保留工作区和暂存区的修改"):
+                    execute_git(['reset', '--soft', commit])
+            elif choice == "2":
+                if confirm_action("确定要执行混合重置吗？这将清空暂存区但保留工作区的修改"):
+                    execute_git(['reset', '--mixed', commit])
+            elif choice == "3":
+                if confirm_action("警告：硬重置将丢失所有未提交的修改！确定要继续吗？"):
+                    execute_git(['reset', '--hard', commit])
         else:
             print_colored("无效的选择", "yellow")
             continue

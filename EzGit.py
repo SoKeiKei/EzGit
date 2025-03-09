@@ -83,24 +83,26 @@ def show_menu():
     print("1. 仓库状态     (git status/init/clone)")
     print("2. 暂存更改     (git add)")
     print("3. 提交更改     (git commit)")
-    print("4. 推送更改     (git push)")
-    print("5. 拉取更新     (git pull)")
+    print("4. 历史查看     (git log)")
+    print("5. 推送更改     (git push)")
+    print("6. 拉取更新     (git pull)")
 
     print_colored("\n[分支操作]", "yellow")
-    print("6. 分支管理     (git branch)")
-    print("7. 切换分支     (git checkout)")
-    print("8. 合并分支     (git merge)")
-    print("9. 变基操作     (git rebase)")
+    print("7. 分支管理     (git branch)")
+    print("8. 切换分支     (git checkout)")
+    print("9. 合并分支     (git merge)")
+    print("10. 变基操作    (git rebase)")
 
     print_colored("\n[远程操作]", "yellow")
-    print("10. 远程配置    (git remote)")
-    print("11. 标签管理    (git tag)")
+    print("11. 远程配置    (git remote)")
+    print("12. 标签管理    (git tag)")
 
     print_colored("\n[高级操作]", "yellow")
-    print("12. 储藏管理    (git stash)")
-    print("13. 重置操作    (git reset)")
-    print("14. 还原操作    (git revert)")
-    print("15. 清理仓库    (git clean)")
+    print("13. 储藏操作    (git stash)")
+    print("14. 版本管理    (reset/revert/restore)")
+    print("15. 仓库维护    (clean/gc)")
+    print("16. 分析工具    (stats/search/diff)")
+    print("17. 配置管理    (config/alias)")
 
     print_colored("\n[其他选项]", "yellow")
     print("h. 显示帮助")
@@ -456,43 +458,42 @@ def handle_pull():
 
 def handle_log():
     """
-    处理git log命令
+    处理历史查看
     @return: None
     """
     while True:
         print("\n" + "="*40)
-        print_colored("历史记录", "cyan")
+        print_colored("历史查看", "cyan")
         print("="*40)
-        
-        print("\n1. 查看完整历史")
-        print("2. 查看简洁历史")
-        print("3. 查看图形化历史")
-        print("4. 查看指定文件历史")
-        print("5. 查看指定作者提交")
-        print("6. 搜索提交信息")
-        print("\n0. 返回上级菜单")
+        print("1. 查看完整历史")
+        print("2. 查看简化历史    (--oneline)")
+        print("3. 查看分支历史    (--graph)")
+        print("4. 查看文件历史")
+        print("5. 搜索历史记录")
+        print("6. 查看指定作者的提交")
+        print("\n0. 返回主菜单")
         
         choice = input("\n请选择 (0-6): ")
         
         if choice == "0":
             return
         elif choice == "1":
-            execute_git(['log'])
+            execute_git(['log', '--stat'])
         elif choice == "2":
             execute_git(['log', '--oneline'])
         elif choice == "3":
             execute_git(['log', '--graph', '--oneline', '--all'])
         elif choice == "4":
-            file = input("\n请输入文件名: ")
-            execute_git(['log', '--follow', file])
+            file = input("\n请输入文件路径: ")
+            execute_git(['log', '--follow', '--', file])
         elif choice == "5":
+            keyword = input("\n请输入搜索关键词: ")
+            execute_git(['log', '--grep', keyword, '--all'])
+        elif choice == "6":
             author = input("\n请输入作者名称: ")
             execute_git(['log', '--author', author])
-        elif choice == "6":
-            pattern = input("\n请输入搜索关键词: ")
-            execute_git(['log', '--grep', pattern])
         else:
-            print_colored("\n无效的选择，请重试", "yellow")
+            print_colored("无效的选择", "yellow")
             continue
         
         input("\n按回车键继续...")
@@ -782,20 +783,112 @@ def handle_advanced():
     elif choice == "5":
         handle_clean()
 
+def get_repo_root():
+    """
+    获取Git仓库根目录
+    @return: str 仓库根目录路径或None
+    """
+    try:
+        result = subprocess.run(['git', 'rev-parse', '--show-toplevel'],
+                              capture_output=True,
+                              text=True,
+                              encoding='utf-8')
+        if result.returncode == 0:
+            return result.stdout.strip()
+    except:
+        return None
+
+def get_relative_path(file_path):
+    """
+    将绝对路径转换为相对于仓库根目录的路径
+    @param file_path: str 文件路径
+    @return: str 相对路径
+    """
+    repo_root = get_repo_root()
+    if repo_root and os.path.isabs(file_path):
+        try:
+            return os.path.relpath(file_path, repo_root)
+        except:
+            return file_path
+    return file_path
+
 def handle_recovery():
     """
-    处理错误恢复
+    处理恢复操作
     @return: None
     """
-    print_colored("\n=== 错误恢复 ===", "cyan")
-    print("1. 撤销最后一次提交")
-    print("2. 恢复删除的文件")
-    print("3. 修复损坏的仓库")
-    print("4. 查看操作历史")
-    print("0. 返回主菜单")
-    
-    choice = input("\n请选择 (0-4): ")
-    # ... 实现各种恢复功能 ...
+    while True:
+        print("\n" + "="*40)
+        print_colored("恢复操作", "cyan")
+        print("="*40)
+        print("1. 恢复文件的历史版本")
+        print("2. 恢复已删除的文件")
+        print("3. 撤销未暂存的修改")
+        print("4. 撤销已暂存的修改")
+        print("\n说明: ")
+        print("- 恢复历史版本：将文件恢复到之前的某个版本")
+        print("- 恢复已删除：找回已经删除的文件")
+        print("- 撤销未暂存：放弃对文件的修改")
+        print("- 撤销已暂存：将文件从暂存区移出")
+        print("\n当前目录:", os.getcwd())
+        print("仓库根目录:", get_repo_root() or "未找到Git仓库")
+        print("\n文件路径说明:")
+        print("1. 相对路径: 相对于当前目录，如 'src/main.py'")
+        print("2. 绝对路径: 完整的系统路径，如 '/home/user/project/src/main.py'")
+        print("3. 仓库路径: 相对于仓库根目录，如 'main.py'")
+        print("\n0. 返回主菜单")
+        
+        choice = input("\n请选择 (0-4): ")
+        
+        if choice == "0":
+            return
+        elif choice == "1":
+            # 恢复文件的历史版本
+            print("\n可用的文件列表:")
+            execute_git(['ls-files'])  # 显示仓库中的所有文件
+            file = input("\n请输入要恢复的文件路径(相对/绝对路径): ")
+            file = get_relative_path(file)
+            if os.path.exists(file) or input("文件不存在，是否继续？(y/N): ").lower() == 'y':
+                print("\n文件的历史版本:")
+                execute_git(['log', '--oneline', '--', file])
+                commit = input("\n请输入要恢复的版本(commit id): ")
+                if commit:
+                    if execute_git(['checkout', commit, '--', file]):
+                        print_colored(f"\n✓ 已将 {file} 恢复到版本 {commit}", "green")
+        elif choice == "2":
+            # 恢复已删除的文件
+            print("\n已删除的文件列表:")
+            execute_git(['ls-files', '-d'])
+            file = input("\n请输入要恢复的文件路径: ")
+            if execute_git(['checkout', 'HEAD', '--', file]):
+                print_colored(f"\n✓ 已恢复文件 {file}", "green")
+        elif choice == "3":
+            # 撤销未暂存的修改
+            print("\n已修改的文件:")
+            execute_git(['diff', '--name-only'])
+            file = input("\n请输入要撤销的文件路径(回车撤销所有): ")
+            if file:
+                if execute_git(['checkout', '--', file]):
+                    print_colored(f"\n✓ 已撤销对 {file} 的修改", "green")
+            else:
+                if execute_git(['checkout', '.']):
+                    print_colored("\n✓ 已撤销所有未暂存的修改", "green")
+        elif choice == "4":
+            # 撤销已暂存的修改
+            print("\n已暂存的文件:")
+            execute_git(['diff', '--cached', '--name-only'])
+            file = input("\n请输入要撤销的文件路径(回车撤销所有): ")
+            if file:
+                if execute_git(['reset', 'HEAD', file]):
+                    print_colored(f"\n✓ 已将 {file} 从暂存区移出", "green")
+            else:
+                if execute_git(['reset', 'HEAD']):
+                    print_colored("\n✓ 已撤销所有暂存", "green")
+        else:
+            print_colored("无效的选择", "yellow")
+            continue
+        
+        input("\n按回车键继续...")
 
 def check_update():
     """
@@ -1121,7 +1214,7 @@ def handle_custom_menu():
                 "其他功能": [
                     ("12", "配置信息", "git config"),
                     ("13", "标签管理", "git tag"),
-                    ("14", "储藏管理", "git stash")
+                    ("14", "储藏操作", "git stash")
                 ]
             }
             
@@ -1667,6 +1760,477 @@ def handle_init():
         
         input("\n按回车键继续...")
 
+def get_commit_by_index(commits, index):
+    """
+    根据序号获取提交ID
+    @param commits: list 提交列表
+    @param index: str 序号或提交ID
+    @return: str 提交ID或None
+    """
+    try:
+        # 尝试作为序号处理
+        idx = int(index) - 1
+        if 0 <= idx < len(commits):
+            return commits[idx].split()[0]  # 返回提交ID
+    except ValueError:
+        # 如果不是数字，作为提交ID处理
+        if any(index in commit for commit in commits):
+            return index
+    return None
+
+def handle_revert():
+    """
+    处理还原操作
+    @return: None
+    """
+    while True:
+        print("\n" + "="*40)
+        print_colored("还原操作", "cyan")
+        print("="*40)
+        print("1. 还原指定提交")
+        print("2. 还原最近的提交")
+        print("3. 还原合并提交")
+        print("\n说明: 还原操作会创建新的提交来撤销之前的更改")
+        print("     不同于 reset，revert 是安全的操作")
+        print("\n0. 返回主菜单")
+        
+        choice = input("\n请选择 (0-3): ")
+        
+        if choice == "0":
+            return
+        
+        # 检查工作区状态
+        result = subprocess.run(['git', 'status', '--porcelain'], 
+                              capture_output=True, 
+                              text=True,
+                              encoding='utf-8')
+        if result.stdout.strip():
+            print_colored("\n⚠ 工作区有未提交的更改", "yellow")
+            print("请先提交或储藏(stash)这些更改")
+            print("\n可选操作:")
+            print("1. 提交更改")
+            print("2. 储藏更改")
+            print("3. 放弃操作")
+            
+            op = input("\n请选择 (1-3): ")
+            if op == "1":
+                message = input("请输入提交信息: ")
+                if not execute_git(['commit', '-am', message]):
+                    print_colored("\n✗ 提交失败，请手动处理更改", "red")
+                    input("\n按回车键继续...")
+                    continue
+            elif op == "2":
+                if not execute_git(['stash', 'save']):
+                    print_colored("\n✗ 储藏失败，请手动处理更改", "red")
+                    input("\n按回车键继续...")
+                    continue
+            else:
+                continue
+        
+        if choice == "1":
+            while True:
+                # 获取并显示提交历史
+                result = subprocess.run(['git', 'log', '--oneline', '-n', '10'], 
+                                     capture_output=True, 
+                                     text=True,
+                                     encoding='utf-8')
+                if result.stdout:
+                    commits = result.stdout.strip().split('\n')
+                    print("\n最近的提交记录:")
+                    for i, commit in enumerate(commits, 1):
+                        print(f"{i}. {commit}")
+                    
+                    print("\n0. 返回上级菜单")
+                    index = input("\n请输入序号或提交ID: ")
+                    
+                    if index == "0":
+                        break
+                    
+                    commit_id = get_commit_by_index(commits, index)
+                    
+                    if commit_id:
+                        if execute_git(['revert', commit_id]):
+                            print_colored(f"\n✓ 已还原提交 {commit_id}", "green")
+                            # 显示还原后的状态
+                            execute_git(['log', '-1', '--stat'])
+                            input("\n按回车键继续...")
+                            break
+                    else:
+                        print_colored("\n无效的序号或提交ID", "yellow")
+                        continue
+        elif choice == "2":
+            if execute_git(['revert', 'HEAD']):
+                print_colored("\n✓ 已还原最近的提交", "green")
+                # 显示还原后的状态
+                execute_git(['log', '-1', '--stat'])
+            else:
+                print_colored("\n✗ 还原失败", "red")
+        elif choice == "3":
+            while True:
+                # 获取并显示合并提交
+                result = subprocess.run(['git', 'log', '--merges', '--oneline', '-n', '5'],
+                                     capture_output=True,
+                                     text=True,
+                                     encoding='utf-8')
+                if result.stdout:
+                    commits = result.stdout.strip().split('\n')
+                    print("\n最近的合并提交:")
+                    for i, commit in enumerate(commits, 1):
+                        print(f"{i}. {commit}")
+                    
+                    print("\n0. 返回上级菜单")
+                    index = input("\n请输入序号或提交ID: ")
+                    
+                    if index == "0":
+                        break
+                    
+                    commit_id = get_commit_by_index(commits, index)
+                    
+                    if commit_id:
+                        parent = input("请输入要保留的父提交编号(1 或 2): ")
+                        if execute_git(['revert', '-m', parent, commit_id]):
+                            print_colored(f"\n✓ 已还原合并提交 {commit_id}", "green")
+                            # 显示还原后的状态
+                            execute_git(['log', '-1', '--stat'])
+                            input("\n按回车键继续...")
+                            break
+                    else:
+                        print_colored("\n无效的序号或提交ID", "yellow")
+                        continue
+        else:
+            print_colored("无效的选择", "yellow")
+            continue
+        
+        if choice in ["1", "2", "3"]:
+            input("\n按回车键继续...")
+
+def handle_stats():
+    """
+    处理 Git 仓库统计分析
+    @return: None
+    """
+    while True:
+        print("\n" + "="*40)
+        print_colored("仓库统计分析", "cyan")
+        print("="*40)
+        print("1. 提交统计")
+        print("2. 贡献者统计") 
+        print("3. 文件变更统计")
+        print("4. 代码行数统计")
+        print("\n0. 返回主菜单")
+
+        choice = input("\n请选择 (0-4): ")
+
+        if choice == "0":
+            return
+        elif choice == "1":
+            # 提交统计
+            print("\n提交统计:")
+            execute_git(['shortlog', '-sn', '--all'])
+            print("\n每月提交数:")
+            execute_git(['log', '--format="%ad"', '--date=format:%Y-%m', '--all', '|', 'sort', '|', 'uniq', '-c'])
+        elif choice == "2":
+            # 贡献者统计
+            print("\n贡献者列表:")
+            execute_git(['shortlog', '-sne', '--all'])
+            print("\n活跃时间段:")
+            execute_git(['log', '--format="%ad"', '--date=format:%H', '--all', '|', 'sort', '|', 'uniq', '-c'])
+        elif choice == "3":
+            # 文件变更统计
+            print("\n文件变更排名:")
+            execute_git(['log', '--pretty=format:', '--name-only', '|', 'sort', '|', 'uniq', '-c', '|', 'sort', '-rg', '|', 'head', '-10'])
+        elif choice == "4":
+            # 代码行数统计
+            print("\n代码行数统计:")
+            result = subprocess.run(['git', 'ls-files'], capture_output=True, text=True, encoding='utf-8')
+            if result.stdout:
+                files = result.stdout.strip().split('\n')
+                total_lines = 0
+                for file in files:
+                    try:
+                        with open(file, 'r', encoding='utf-8') as f:
+                            lines = len(f.readlines())
+                            print(f"{file}: {lines} 行")
+                            total_lines += lines
+                    except:
+                        continue
+                print(f"\n总计: {total_lines} 行")
+        else:
+            print_colored("无效的选择", "yellow")
+            continue
+
+        input("\n按回车键继续...")
+
+def handle_search():
+    """
+    处理 Git 仓库搜索功能
+    @return: None 
+    """
+    while True:
+        print("\n" + "="*40)
+        print_colored("仓库搜索", "cyan")
+        print("="*40)
+        print("1. 搜索提交信息")
+        print("2. 搜索提交内容")
+        print("3. 搜索文件")
+        print("4. 搜索作者提交")
+        print("\n0. 返回主菜单")
+
+        choice = input("\n请选择 (0-4): ")
+
+        if choice == "0":
+            return
+        elif choice == "1":
+            keyword = input("\n请输入搜索关键词: ")
+            execute_git(['log', '--all', '--grep', keyword])
+        elif choice == "2":
+            keyword = input("\n请输入搜索关键词: ")
+            execute_git(['log', '-p', '--all', '-S', keyword])
+        elif choice == "3":
+            pattern = input("\n请输入文件名模式(如 *.py): ")
+            execute_git(['ls-files', '*' + pattern])
+        elif choice == "4":
+            author = input("\n请输入作者邮箱或名称: ")
+            execute_git(['log', '--author', author])
+        else:
+            print_colored("无效的选择", "yellow")
+            continue
+
+        input("\n按回车键继续...")
+
+def handle_compare():
+    """
+    处理 Git 比较功能
+    @return: None
+    """
+    while True:
+        print("\n" + "="*40)
+        print_colored("版本比较", "cyan")
+        print("="*40)
+        print("1. 比较两个分支")
+        print("2. 比较两个提交")
+        print("3. 比较工作区与暂存区")
+        print("4. 比较暂存区与最新提交")
+        print("5. 查看文件历史变更")
+        print("\n0. 返回主菜单")
+
+        choice = input("\n请选择 (0-5): ")
+
+        if choice == "0":
+            return
+        elif choice == "1":
+            branch1 = input("\n请输入第一个分支名: ")
+            branch2 = input("请输入第二个分支名: ")
+            print("\n1. 查看文件差异")
+            print("2. 只看改动统计")
+            print("3. 查看提交差异")
+            sub_choice = input("\n请选择比较方式 (1-3): ")
+            if sub_choice == "1":
+                execute_git(['diff', branch1, branch2])
+            elif sub_choice == "2":
+                execute_git(['diff', '--stat', branch1, branch2])
+            elif sub_choice == "3":
+                execute_git(['log', f'{branch1}..{branch2}', '--oneline'])
+        elif choice == "2":
+            commit1 = input("\n请输入第一个提交ID: ")
+            commit2 = input("请输入第二个提交ID: ")
+            execute_git(['diff', commit1, commit2])
+        elif choice == "3":
+            file = input("\n请输入文件路径(回车比较所有): ")
+            if file:
+                execute_git(['diff', file])
+            else:
+                execute_git(['diff'])
+        elif choice == "4":
+            file = input("\n请输入文件路径(回车比较所有): ")
+            if file:
+                execute_git(['diff', '--cached', file])
+            else:
+                execute_git(['diff', '--cached'])
+        elif choice == "5":
+            file = input("\n请输入文件路径: ")
+            execute_git(['log', '-p', file])
+        else:
+            print_colored("无效的选择", "yellow")
+            continue
+
+        input("\n按回车键继续...")
+
+def handle_alias():
+    """
+    处理 Git 别名管理
+    @return: None
+    """
+    while True:
+        print("\n" + "="*40)
+        print_colored("别名管理", "cyan")
+        print("="*40)
+        print("1. 查看所有别名")
+        print("2. 添加别名")
+        print("3. 删除别名")
+        print("4. 常用别名推荐")
+        print("\n0. 返回主菜单")
+
+        choice = input("\n请选择 (0-4): ")
+
+        if choice == "0":
+            return
+        elif choice == "1":
+            execute_git(['config', '--global', '--get-regexp', '^alias\.'])
+        elif choice == "2":
+            alias = input("\n请输入别名(不含 alias.): ")
+            command = input("请输入对应的Git命令: ")
+            execute_git(['config', '--global', f'alias.{alias}', command])
+            print_colored(f"\n已添加别名: git {alias} => git {command}", "green")
+        elif choice == "3":
+            alias = input("\n请输入要删除的别名(不含 alias.): ")
+            execute_git(['config', '--global', '--unset', f'alias.{alias}'])
+            print_colored(f"\n已删除别名: {alias}", "green")
+        elif choice == "4":
+            print("\n推荐的常用别名:")
+            aliases = {
+                'st': 'status',
+                'co': 'checkout',
+                'br': 'branch',
+                'ci': 'commit',
+                'unstage': 'reset HEAD --',
+                'last': 'log -1 HEAD',
+                'lg': 'log --color --graph --pretty=format:"%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset" --abbrev-commit'
+            }
+            for alias, cmd in aliases.items():
+                print(f"git {alias} => git {cmd}")
+                if input("\n是否添加此别名？(y/N): ").lower() == 'y':
+                    execute_git(['config', '--global', f'alias.{alias}', cmd])
+                    print_colored("已添加", "green")
+        else:
+            print_colored("无效的选择", "yellow")
+            continue
+
+        input("\n按回车键继续...")
+
+def handle_version():
+    """
+    处理版本管理相关操作
+    @return: None
+    """
+    while True:
+        print("\n" + "="*40)
+        print_colored("版本管理", "cyan")
+        print("="*40)
+        print("1. 重置操作    (git reset)")
+        print("2. 还原操作    (git revert)")
+        print("3. 恢复操作    (git restore)")
+        print("\n0. 返回主菜单")
+
+        choice = input("\n请选择 (0-3): ")
+
+        if choice == "0":
+            return
+        elif choice == "1":
+            handle_reset()
+        elif choice == "2":
+            handle_revert()
+        elif choice == "3":
+            handle_recovery()
+        else:
+            print_colored("无效的选择", "yellow")
+            continue
+
+        input("\n按回车键继续...")
+
+def handle_maintenance():
+    """
+    处理仓库维护相关操作
+    @return: None
+    """
+    while True:
+        print("\n" + "="*40)
+        print_colored("仓库维护", "cyan")
+        print("="*40)
+        print("1. 清理未跟踪文件    (git clean)")
+        print("2. 压缩仓库          (git gc)")
+        print("3. 文件系统检查      (git fsck)")
+        print("4. 引用完整性检查    (git prune)")
+        print("\n0. 返回主菜单")
+
+        choice = input("\n请选择 (0-4): ")
+
+        if choice == "0":
+            return
+        elif choice == "1":
+            handle_clean()
+        elif choice == "2":
+            execute_git(['gc', '--aggressive', '--prune=now'])
+        elif choice == "3":
+            execute_git(['fsck'])
+        elif choice == "4":
+            execute_git(['prune', '-v'])
+        else:
+            print_colored("无效的选择", "yellow")
+            continue
+
+        input("\n按回车键继续...")
+
+def handle_analysis():
+    """
+    处理分析工具相关操作
+    @return: None
+    """
+    while True:
+        print("\n" + "="*40)
+        print_colored("分析工具", "cyan")
+        print("="*40)
+        print("1. 统计分析    (git stats)")
+        print("2. 仓库搜索    (git search)")
+        print("3. 版本比较    (git diff)")
+        print("\n0. 返回主菜单")
+
+        choice = input("\n请选择 (0-3): ")
+
+        if choice == "0":
+            return
+        elif choice == "1":
+            handle_stats()
+        elif choice == "2":
+            handle_search()
+        elif choice == "3":
+            handle_compare()
+        else:
+            print_colored("无效的选择", "yellow")
+            continue
+
+        input("\n按回车键继续...")
+
+def handle_settings_menu():
+    """
+    处理配置管理相关操作
+    @return: None
+    """
+    while True:
+        print("\n" + "="*40)
+        print_colored("配置管理", "cyan")
+        print("="*40)
+        print("1. Git配置     (git config)")
+        print("2. 别名管理    (git alias)")
+        print("3. 工具设置")
+        print("\n0. 返回主菜单")
+
+        choice = input("\n请选择 (0-3): ")
+
+        if choice == "0":
+            return
+        elif choice == "1":
+            handle_config()
+        elif choice == "2":
+            handle_alias()
+        elif choice == "3":
+            handle_settings()
+        else:
+            print_colored("无效的选择", "yellow")
+            continue
+
+        input("\n按回车键继续...")
+
 def main():
     """
     主函数
@@ -1691,35 +2255,49 @@ def main():
             elif choice == "3":
                 handle_commit()
             elif choice == "4":
-                handle_push()
+                handle_log()
             elif choice == "5":
-                handle_pull()
+                handle_push()
             elif choice == "6":
-                handle_branch()
+                handle_pull()
             elif choice == "7":
-                handle_checkout()
+                handle_branch()
             elif choice == "8":
-                handle_merge()
+                handle_checkout()
             elif choice == "9":
-                handle_rebase()
+                handle_merge()
             elif choice == "10":
-                handle_remote()
+                handle_rebase()
             elif choice == "11":
-                handle_tag()
+                handle_remote()
             elif choice == "12":
-                handle_stash()
+                handle_tag()
             elif choice == "13":
-                handle_reset()
+                handle_stash()
             elif choice == "14":
-                handle_revert()
+                handle_version()
             elif choice == "15":
-                handle_clean()
+                handle_maintenance()
+            elif choice == "16":
+                handle_analysis()
+            elif choice == "17":
+                handle_settings_menu()
+            elif choice == "h":
+                show_help()
+            elif choice == "s":
+                handle_stats()
+            elif choice == "t":
+                handle_search()
+            elif choice == "c":
+                handle_compare()
+            elif choice == "a":
+                handle_alias()
             else:
                 print_colored("无效的选择", "yellow")
                 continue
             
             # 只在需要时显示继续提示
-            if choice not in ['0', 'h'] and not choice.isdigit():
+            if choice not in ['0', 'h', 's', 't', 'c', 'a', '16', '17', '18', '19', '20'] and not choice.isdigit():
                 input("\n按回车键继续...")
             
             os.system('cls' if os.name == 'nt' else 'clear')

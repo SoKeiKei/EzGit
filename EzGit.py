@@ -1,68 +1,13 @@
 #!/usr/bin/env python3
 import os
-import sys
-import json
-import logging
 import subprocess
-import shutil
-import argparse
-
-def execute_git_command(command):
-    """
-    执行git命令的通用函数
-    - 使用subprocess.run执行git命令
-    - 处理命令输出和错误
-    - 特殊处理首次推送分支的情况
-    """
-    try:
-        # 添加环境变量设置来强制使用 UTF-8 编码
-        env = os.environ.copy()
-        env['PYTHONIOENCODING'] = 'utf-8'
-        env['LANG'] = 'en_US.UTF-8'
-        
-        # 添加 encoding 参数并使用环境变量
-        result = subprocess.run(['git'] + command, 
-                             capture_output=True, 
-                             text=True,
-                             encoding='utf-8',
-                             errors='replace',
-                             env=env)
-        
-        if result.stdout:
-            print(result.stdout)
-        if result.stderr:
-            # 检查是否是首次推送的错误
-            if "no upstream branch" in result.stderr:
-                print("首次推送分支，正在设置上游分支...")
-                current_branch = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], 
-                                             capture_output=True, 
-                                             text=True,
-                                             encoding='utf-8',
-                                             errors='replace',
-                                             env=env).stdout.strip()
-                # 使用 --set-upstream 选项设置上游分支
-                push_result = subprocess.run(['git', 'push', '--set-upstream', 'origin', current_branch],
-                                          capture_output=True,
-                                          text=True,
-                                          encoding='utf-8',
-                                          errors='replace',
-                                          env=env)
-                if push_result.stdout:
-                    print(push_result.stdout)
-                if push_result.stderr:
-                    print(push_result.stderr)
-            else:
-                print(result.stderr)
-        return result.returncode == 0
-    except Exception as e:
-        print(f"执行出错: {str(e)}")
-        return False
+import sys
 
 def print_colored(text, color):
     """
-    打印带颜色的文本
-    @param text: str 要打印的文本
-    @param color: str 颜色代码
+    打印彩色文本
+    @param text: str 文本内容
+    @param color: str 颜色名称
     @return: None
     """
     colors = {
@@ -72,15 +17,53 @@ def print_colored(text, color):
         'blue': '\033[94m',
         'purple': '\033[95m',
         'cyan': '\033[96m',
-        'white': '\033[97m',
-        'bold': '\033[1m',
         'end': '\033[0m'
     }
     print(f"{colors.get(color, '')}{text}{colors['end']}")
 
+def execute_git(command):
+    """
+    执行 Git 命令
+    @param command: list Git 命令及参数
+    @return: bool 是否执行成功
+    """
+    try:
+        env = os.environ.copy()
+        env['PYTHONIOENCODING'] = 'utf-8'
+        env['LANG'] = 'en_US.UTF-8'
+        
+        result = subprocess.run(['git'] + command, 
+                              capture_output=True, 
+                              text=True,
+                              encoding='utf-8',
+                              env=env)
+        if result.stdout:
+            print(result.stdout)
+        if result.stderr:
+            if "no upstream branch" in result.stderr:
+                print("首次推送分支，正在设置上游分支...")
+                current_branch = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+                                             capture_output=True,
+                                             text=True,
+                                             encoding='utf-8').stdout.strip()
+                push_result = subprocess.run(['git', 'push', '--set-upstream', 'origin', current_branch],
+                                          capture_output=True,
+                                          text=True,
+                                          encoding='utf-8')
+                if push_result.stdout:
+                    print(push_result.stdout)
+                if push_result.stderr:
+                    print(push_result.stderr)
+            else:
+                print(result.stderr)
+        return result.returncode == 0
+    except Exception as e:
+        print_colored(f"执行出错: {str(e)}", "red")
+        return False
+
 def show_menu():
     """
-    显示优化后的主菜单选项
+    显示主菜单
     @return: None
     """
     logo = """
@@ -96,74 +79,37 @@ def show_menu():
     print_colored("让Git操作变得简单! 作者: SoKei", "purple")
     print("="*50)
 
-    # 加载菜单配置
-    menu_config = load_custom_menu()
-    menu_mode = menu_config['mode']
+    print_colored("\n[仓库操作]", "yellow")
+    print("1. 初始化仓库   (git init)")
+    print("2. 克隆仓库     (git clone)")
 
-    if menu_mode == 'simple':
-        # 显示简单菜单
-        print_colored("\n[常用操作]", "yellow")
-        simple_menu = [
-            ("1", "查看状态", "git status"),
-            ("2", "暂存更改", "git add"),
-            ("3", "提交更改", "git commit"),
-            ("4", "推送更改", "git push"),
-            ("5", "拉取更新", "git pull")
-        ]
-        for num, name, cmd in simple_menu:
-            print(f"{num}. {name.ljust(12)} {cmd}")
-    elif menu_mode == 'custom':
-        # 显示自定义菜单
-        custom_menu = menu_config['custom_menu']
-        for category, items in custom_menu.items():
-            print_colored(f"\n[{category}]", "yellow")
-            for num, name, cmd in items:
-                print(f"{num}. {name.ljust(12)} {cmd}")
-    else:
-        # 显示完整菜单
-        menu_items = {
-            "常用操作": [
-                ("1", "查看仓库状态", "git status"),
-                ("2", "暂存更改", "git add"),
-                ("3", "提交更改", "git commit"),
-                ("4", "查看历史", "git log")
-            ],
-            "远程操作": [
-                ("5", "推送更改", "git push"),
-                ("6", "拉取更新", "git pull"),
-                ("7", "克隆仓库", "git clone"),
-                ("8", "远程配置", "git remote")
-            ],
-            "分支管理": [
-                ("9", "分支操作", "git branch"),
-                ("10", "切换分支", "git checkout"),
-                ("11", "合并分支", "git merge")
-            ],
-            "高级功能": [
-                ("12", "配置信息", "git config"),
-                ("13", "标签管理", "git tag"),
-                ("14", "储藏管理", "git stash"),
-                ("15", "高级操作", "advanced"),
-                ("16", "错误恢复", "recovery")
-            ],
-            "工具设置": [
-                ("17", "配置工具", "settings"),
-                ("18", "查看日志", "logs"),
-                ("19", "检查更新", "update")
-            ]
-        }
-        for category, items in menu_items.items():
-            print_colored(f"\n[{category}]", "yellow")
-            for num, name, cmd in items:
-                print(f"{num}. {name.ljust(12)} {cmd}")
+    print_colored("\n[常用操作]", "yellow")
+    print("3. 查看状态     (git status)")
+    print("4. 暂存更改     (git add)")
+    print("5. 提交更改     (git commit)")
+    print("6. 推送更改     (git push)")
+    print("7. 拉取更新     (git pull)")
+
+    print_colored("\n[分支操作]", "yellow")
+    print("8. 分支管理     (git branch)")
+    print("9. 切换分支     (git checkout)")
+    print("10. 合并分支    (git merge)")
+    print("11. 变基操作    (git rebase)")
+
+    print_colored("\n[远程操作]", "yellow")
+    print("12. 远程配置    (git remote)")
+    print("13. 标签管理    (git tag)")
+
+    print_colored("\n[高级操作]", "yellow")
+    print("14. 储藏管理    (git stash)")
+    print("15. 重置操作    (git reset)")
+    print("16. 还原操作    (git revert)")
+    print("17. 清理仓库    (git clean)")
 
     print_colored("\n[其他选项]", "yellow")
-    print(" m. 切换菜单模式")
-    print(" c. 自定义菜单")
-    print(" h. 显示帮助")
-    print(" 0. 退出程序")
+    print("h. 显示帮助")
+    print("0. 退出程序")
     print("\n" + "="*50)
-    print_colored("提示：输入命令编号执行操作，输入 'm' 切换菜单模式", "green")
 
 def show_help():
     """
@@ -222,12 +168,12 @@ def handle_add():
             return True
         elif choice == "1":
             if confirm_action("即将暂存所有更改"):
-                execute_git_command(['add', '.'])
+                execute_git(['add', '.'])
         elif choice == "2":
             file_name = input("请输入要暂存的文件名(支持通配符): ")
-            execute_git_command(['add', file_name])
+            execute_git(['add', file_name])
         elif choice == "3":
-            execute_git_command(['add', '-i'])
+            execute_git(['add', '-i'])
         else:
             print_colored("无效的选择，请重试", "yellow")
         
@@ -254,10 +200,10 @@ def handle_commit():
             
         if choice == "1":
             commit_message = input("\n请输入提交信息: ")
-            result = execute_git_command(['commit', '-m', commit_message])
+            result = execute_git(['commit', '-m', commit_message])
         elif choice == "2":
             commit_message = input("\n请输入提交信息: ")
-            result = execute_git_command(['commit', '-m', commit_message, '--no-verify'])
+            result = execute_git(['commit', '-m', commit_message, '--no-verify'])
         else:
             print_colored("无效的选择", "yellow")
             continue
@@ -272,7 +218,7 @@ def handle_commit():
             retry = input("请选择 (0-2): ")
             
             if retry == "1":
-                if execute_git_command(['commit', '-m', commit_message, '--no-verify']):
+                if execute_git(['commit', '-m', commit_message, '--no-verify']):
                     print_colored("提交成功！", "green")
             elif retry == "2":
                 continue
@@ -305,32 +251,32 @@ def handle_branch():
             return
         elif choice == "1":
             print("\n分支列表:")
-            execute_git_command(['branch', '-av'])
+            execute_git(['branch', '-av'])
         elif choice == "2":
             name = input("\n请输入新分支名称: ")
             if confirm_action(f"是否切换到新分支 {name}？"):
-                execute_git_command(['checkout', '-b', name])
+                execute_git(['checkout', '-b', name])
             else:
-                execute_git_command(['branch', name])
+                execute_git(['branch', name])
         elif choice == "3":
             name = input("\n请输入要删除的分支名: ")
             if confirm_action(f"确定要删除分支 {name} 吗？"):
                 try:
-                    execute_git_command(['branch', '-d', name])
+                    execute_git(['branch', '-d', name])
                 except:
                     if confirm_action("分支可能未完全合并，是否强制删除？"):
-                        execute_git_command(['branch', '-D', name])
+                        execute_git(['branch', '-D', name])
         elif choice == "4":
             old_name = input("\n请输入当前分支名: ")
             new_name = input("请输入新分支名: ")
-            execute_git_command(['branch', '-m', old_name, new_name])
+            execute_git(['branch', '-m', old_name, new_name])
         elif choice == "5":
             name = input("\n请输入分支名(回车查看当前分支): ") or 'HEAD'
-            execute_git_command(['show-branch', name])
+            execute_git(['show-branch', name])
         elif choice == "6":
             local = input("\n请输入本地分支名: ")
             remote = input("请输入远程分支名: ")
-            execute_git_command(['branch', '-u', f'origin/{remote}', local])
+            execute_git(['branch', '-u', f'origin/{remote}', local])
         else:
             print_colored("\n无效的选择，请重试", "yellow")
             continue
@@ -359,18 +305,18 @@ def handle_clone():
         elif choice == "1":
             url = input("\n请输入仓库地址: ")
             if confirm_action("是否克隆到当前目录？"):
-                execute_git_command(['clone', url, '.'])
+                execute_git(['clone', url, '.'])
             else:
                 path = input("请输入目标目录: ")
-                execute_git_command(['clone', url, path])
+                execute_git(['clone', url, path])
         elif choice == "2":
             url = input("\n请输入仓库地址: ")
             branch = input("请输入分支名: ")
-            execute_git_command(['clone', '-b', branch, url])
+            execute_git(['clone', '-b', branch, url])
         elif choice == "3":
             url = input("\n请输入仓库地址: ")
             tag = input("请输入标签名: ")
-            execute_git_command(['clone', '-b', tag, url])
+            execute_git(['clone', '-b', tag, url])
         else:
             print_colored("\n无效的选择，请重试", "yellow")
             continue
@@ -398,20 +344,20 @@ def handle_config():
         if choice == "0":
             return
         elif choice == "1":
-            execute_git_command(['config', '--list'])
+            execute_git(['config', '--list'])
         elif choice == "2":
             username = input("\n请输入Git用户名: ")
             email = input("请输入Git邮箱: ")
-            execute_git_command(['config', '--global', 'user.name', username])
-            execute_git_command(['config', '--global', 'user.email', email])
+            execute_git(['config', '--global', 'user.name', username])
+            execute_git(['config', '--global', 'user.email', email])
             print_colored("\nGit用户信息配置完成！", "green")
         elif choice == "3":
             editor = input("\n请输入编辑器命令(如 vim, nano): ")
-            execute_git_command(['config', '--global', 'core.editor', editor])
+            execute_git(['config', '--global', 'core.editor', editor])
             print_colored("\n默认编辑器设置完成！", "green")
         elif choice == "4":
             branch = input("\n请输入默认分支名(如 main, master): ")
-            execute_git_command(['config', '--global', 'init.defaultBranch', branch])
+            execute_git(['config', '--global', 'init.defaultBranch', branch])
             print_colored("\n默认分支名设置完成！", "green")
         else:
             print_colored("\n无效的选择，请重试", "yellow")
@@ -448,14 +394,14 @@ def handle_remote():
                                  encoding='utf-8')
             if result.stdout.strip():
                 print("\n当前远程仓库列表:")
-                execute_git_command(['remote', '-v'])
+                execute_git(['remote', '-v'])
             else:
                 print_colored("\n当前仓库没有配置任何远程仓库", "yellow")
                 print("提示: 使用选项 2 添加远程仓库")
         elif choice == "2":
             remote_name = input("\n请输入远程仓库名称(默认 origin): ") or "origin"
             remote_url = input("请输入远程仓库URL: ")
-            execute_git_command(['remote', 'add', remote_name, remote_url])
+            execute_git(['remote', 'add', remote_name, remote_url])
             print_colored(f"\n成功添加远程仓库: {remote_name}", "green")
         elif choice == "3":
             # 先检查并显示现有远程仓库
@@ -470,10 +416,10 @@ def handle_remote():
                 continue
                 
             print("\n当前远程仓库列表:")
-            execute_git_command(['remote', '-v'])
+            execute_git(['remote', '-v'])
             remote_name = input("\n请输入要修改的远程仓库名称: ")
             remote_url = input("请输入新的远程仓库URL: ")
-            execute_git_command(['remote', 'set-url', remote_name, remote_url])
+            execute_git(['remote', 'set-url', remote_name, remote_url])
             print_colored(f"\n成功更新远程仓库 {remote_name} 的URL", "green")
         elif choice == "4":
             # 先检查并显示现有远程仓库
@@ -487,10 +433,10 @@ def handle_remote():
                 continue
                 
             print("\n当前远程仓库列表:")
-            execute_git_command(['remote', '-v'])
+            execute_git(['remote', '-v'])
             remote_name = input("\n请输入要删除的远程仓库名称: ")
             if confirm_action(f"确定要删除远程仓库 {remote_name} 吗？"):
-                execute_git_command(['remote', 'remove', remote_name])
+                execute_git(['remote', 'remove', remote_name])
                 print_colored(f"\n成功删除远程仓库: {remote_name}", "green")
         elif choice == "5":
             # 先检查并显示现有远程仓库
@@ -504,10 +450,10 @@ def handle_remote():
                 continue
                 
             print("\n当前远程仓库列表:")
-            execute_git_command(['remote', '-v'])
+            execute_git(['remote', '-v'])
             old_name = input("\n请输入要重命名的远程仓库名称: ")
             new_name = input("请输入新的远程仓库名称: ")
-            execute_git_command(['remote', 'rename', old_name, new_name])
+            execute_git(['remote', 'rename', old_name, new_name])
             print_colored(f"\n成功将远程仓库 {old_name} 重命名为 {new_name}", "green")
         else:
             print_colored("\n无效的选择，请重试", "yellow")
@@ -639,17 +585,17 @@ def handle_pull():
             
             if choice == "1":
                 # 暂存并提交
-                execute_git_command(['add', '.'])
+                execute_git(['add', '.'])
                 commit_msg = input("请输入提交信息: ")
-                execute_git_command(['commit', '-m', commit_msg])
+                execute_git(['commit', '-m', commit_msg])
             elif choice == "2":
                 # 储藏更改
                 print("储藏当前更改...")
-                execute_git_command(['stash'])
+                execute_git(['stash'])
             elif choice == "3":
                 # 放弃更改
                 print("放弃所有本地更改...")
-                execute_git_command(['reset', '--hard'])
+                execute_git(['reset', '--hard'])
             elif choice == "4":
                 print("操作已取消")
                 return
@@ -673,12 +619,12 @@ def handle_pull():
                       capture_output=True, text=True)
         
         # 拉取更新
-        execute_git_command(['pull'])
+        execute_git(['pull'])
         
         # 如果之前选择了储藏更改，现在恢复它们
         if choice == "2":
             print("恢复储藏的更改...")
-            execute_git_command(['stash', 'pop'])
+            execute_git(['stash', 'pop'])
             print("如果有冲突，请手动解决后提交")
             
     except Exception as e:
@@ -730,20 +676,20 @@ def handle_log():
         if choice == "0":
             return
         elif choice == "1":
-            execute_git_command(['log'])
+            execute_git(['log'])
         elif choice == "2":
-            execute_git_command(['log', '--oneline'])
+            execute_git(['log', '--oneline'])
         elif choice == "3":
-            execute_git_command(['log', '--graph', '--oneline', '--all'])
+            execute_git(['log', '--graph', '--oneline', '--all'])
         elif choice == "4":
             file = input("\n请输入文件名: ")
-            execute_git_command(['log', '--follow', file])
+            execute_git(['log', '--follow', file])
         elif choice == "5":
             author = input("\n请输入作者名称: ")
-            execute_git_command(['log', '--author', author])
+            execute_git(['log', '--author', author])
         elif choice == "6":
             pattern = input("\n请输入搜索关键词: ")
-            execute_git_command(['log', '--grep', pattern])
+            execute_git(['log', '--grep', pattern])
         else:
             print_colored("\n无效的选择，请重试", "yellow")
             continue
@@ -772,24 +718,24 @@ def handle_tag():
         if choice == "0":
             return
         elif choice == "1":
-            execute_git_command(['tag', '-l', '-n1'])
+            execute_git(['tag', '-l', '-n1'])
         elif choice == "2":
             tag_name = input("\n请输入标签名称: ")
             message = input("请输入标签说明: ")
-            execute_git_command(['tag', '-a', tag_name, '-m', message])
+            execute_git(['tag', '-a', tag_name, '-m', message])
         elif choice == "3":
             tag_name = input("\n请输入要删除的标签名称: ")
             if confirm_action(f"确定要删除标签 {tag_name} 吗？"):
-                execute_git_command(['tag', '-d', tag_name])
+                execute_git(['tag', '-d', tag_name])
         elif choice == "4":
             tag_name = input("\n请输入要推送的标签名称(回车推送所有标签): ")
             if tag_name:
-                execute_git_command(['push', 'origin', tag_name])
+                execute_git(['push', 'origin', tag_name])
             else:
-                execute_git_command(['push', 'origin', '--tags'])
+                execute_git(['push', 'origin', '--tags'])
         elif choice == "5":
             tag_name = input("\n请输入要检出的标签名称: ")
-            execute_git_command(['checkout', tag_name])
+            execute_git(['checkout', tag_name])
         else:
             print_colored("\n无效的选择，请重试", "yellow")
             continue
@@ -818,33 +764,33 @@ def handle_stash():
         if choice == "0":
             return
         elif choice == "1":
-            execute_git_command(['stash', 'list'])
+            execute_git(['stash', 'list'])
         elif choice == "2":
             message = input("\n请输入储藏说明(可选): ")
             if message:
-                execute_git_command(['stash', 'save', message])
+                execute_git(['stash', 'save', message])
             else:
-                execute_git_command(['stash'])
+                execute_git(['stash'])
         elif choice == "3":
             print("\n储藏列表:")
-            execute_git_command(['stash', 'list'])
+            execute_git(['stash', 'list'])
             stash_id = input("\n请输入储藏ID(如 stash@{0}): ")
             if confirm_action("是否保留储藏？"):
-                execute_git_command(['stash', 'apply', stash_id])
+                execute_git(['stash', 'apply', stash_id])
             else:
-                execute_git_command(['stash', 'pop', stash_id])
+                execute_git(['stash', 'pop', stash_id])
         elif choice == "4":
             print("\n储藏列表:")
-            execute_git_command(['stash', 'list'])
+            execute_git(['stash', 'list'])
             stash_id = input("\n请输入要删除的储藏ID: ")
             if confirm_action(f"确定要删除储藏 {stash_id} 吗？"):
-                execute_git_command(['stash', 'drop', stash_id])
+                execute_git(['stash', 'drop', stash_id])
         elif choice == "5":
             print("\n储藏列表:")
-            execute_git_command(['stash', 'list'])
+            execute_git(['stash', 'list'])
             stash_id = input("\n请输入储藏ID: ")
             branch_name = input("请输入新分支名称: ")
-            execute_git_command(['stash', 'branch', branch_name, stash_id])
+            execute_git(['stash', 'branch', branch_name, stash_id])
         else:
             print_colored("\n无效的选择，请重试", "yellow")
             continue
@@ -878,13 +824,13 @@ def init_repository():
     
     if choice == "1":
         if confirm_action("将在当前目录初始化Git仓库"):
-            return execute_git_command(['init'])
+            return execute_git(['init'])
     elif choice == "2":
         dir_name = input("请输入新目录名称: ")
         try:
             os.makedirs(dir_name, exist_ok=True)
             os.chdir(dir_name)
-            if execute_git_command(['init']):
+            if execute_git(['init']):
                 print_colored(f"\n已在 {dir_name} 目录初始化Git仓库", "green")
                 return True
         except Exception as e:
@@ -912,48 +858,59 @@ def handle_status():
         if choice == "0":
             return
         elif choice == "1":
-            execute_git_command(['status'])
+            execute_git(['status'])
         elif choice == "2":
-            execute_git_command(['status', '-s'])
+            execute_git(['status', '-s'])
         elif choice == "3":
-            execute_git_command(['status', '--untracked-files=all'])
+            execute_git(['status', '--untracked-files=all'])
         elif choice == "4":
-            execute_git_command(['status', '--ignored'])
+            execute_git(['status', '--ignored'])
         else:
             print_colored("\n无效的选择，请重试", "yellow")
             continue
         
         input("\n按回车键继续...")
 
+def get_config_dir():
+    """
+    获取配置目录
+    优先使用当前目录的 .ezgit，如果不存在则使用用户目录
+    @return: str 配置目录路径
+    """
+    local_config = os.path.join(os.getcwd(), '.ezgit')
+    if os.path.exists(local_config):
+        return local_config
+        
+    # 用户目录作为备选
+    user_config = os.path.expanduser('~/.ezgit')
+    return user_config
+
 def load_config():
     """
     加载配置文件
     @return: dict 配置信息
     """
-    config_path = os.path.expanduser('~/.ezgit/config.json')
-    default_config = {
-        'theme': 'default',
-        'language': 'zh_CN',
-        'auto_push': False,
-        'default_branch': 'main',
-        'author': {
-            'name': '',
-            'email': ''
-        }
-    }
+    config_dir = get_config_dir()
+    config_file = os.path.join(config_dir, 'config.json')
     
-    try:
-        if os.path.exists(config_path):
-            with open(config_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        else:
-            # 创建配置目录和文件
-            os.makedirs(os.path.dirname(config_path), exist_ok=True)
-            with open(config_path, 'w', encoding='utf-8') as f:
-                json.dump(default_config, f, indent=4)
-            return default_config
-    except Exception as e:
-        print_colored(f"加载配置文件失败: {str(e)}", "red")
+    # 确保配置目录存在
+    os.makedirs(config_dir, exist_ok=True)
+    
+    # 加载或创建配置
+    if os.path.exists(config_file):
+        with open(config_file, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    else:
+        # 默认配置
+        default_config = {
+            "author": "",
+            "email": "",
+            "default_branch": "main",
+            "auto_push": False,
+            "theme": "default"
+        }
+        # 保存默认配置
+        save_config(default_config)
         return default_config
 
 def setup_logging():
@@ -1578,19 +1535,19 @@ def handle_diff():
         if choice == "0":
             return
         elif choice == "1":
-            execute_git_command(['diff'])
+            execute_git(['diff'])
         elif choice == "2":
-            execute_git_command(['diff', '--cached'])
+            execute_git(['diff', '--cached'])
         elif choice == "3":
             file_name = input("请输入要查看的文件名: ")
-            execute_git_command(['diff', file_name])
+            execute_git(['diff', file_name])
         elif choice == "4":
             commit = input("请输入提交ID (可以是部分ID或HEAD~n): ")
-            execute_git_command(['diff', commit])
+            execute_git(['diff', commit])
         elif choice == "5":
             branch1 = input("请输入第一个分支名: ")
             branch2 = input("请输入第二个分支名: ")
-            execute_git_command(['diff', branch1, branch2])
+            execute_git(['diff', branch1, branch2])
         else:
             print_colored("无效的选择，请重试", "yellow")
             continue
@@ -1682,17 +1639,17 @@ def handle_submodule():
         elif choice == "1":
             url = input("请输入子模块仓库地址: ")
             path = input("请输入子模块路径: ")
-            execute_git_command(['submodule', 'add', url, path])
+            execute_git(['submodule', 'add', url, path])
         elif choice == "2":
-            execute_git_command(['submodule', 'update', '--init', '--recursive'])
+            execute_git(['submodule', 'update', '--init', '--recursive'])
         elif choice == "3":
             path = input("请输入要删除的子模块路径: ")
             if confirm_action(f"确定要删除子模块 {path} 吗？"):
-                execute_git_command(['submodule', 'deinit', '-f', path])
-                execute_git_command(['rm', '-f', path])
+                execute_git(['submodule', 'deinit', '-f', path])
+                execute_git(['rm', '-f', path])
                 shutil.rmtree(os.path.join('.git', 'modules', path), ignore_errors=True)
         elif choice == "4":
-            execute_git_command(['submodule', 'status'])
+            execute_git(['submodule', 'status'])
         else:
             print_colored("无效的选择，请重试", "yellow")
             continue
@@ -1722,45 +1679,45 @@ def handle_workflow():
             return
         elif choice == "1":
             name = input("请输入功能名称: ")
-            execute_git_command(['checkout', '-b', f'feature/{name}', 'develop'])
+            execute_git(['checkout', '-b', f'feature/{name}', 'develop'])
         elif choice == "2":
             branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).decode().strip()
             if branch.startswith('feature/'):
-                execute_git_command(['checkout', 'develop'])
-                execute_git_command(['merge', '--no-ff', branch])
+                execute_git(['checkout', 'develop'])
+                execute_git(['merge', '--no-ff', branch])
                 if confirm_action("是否删除功能分支？"):
-                    execute_git_command(['branch', '-d', branch])
+                    execute_git(['branch', '-d', branch])
             else:
                 print_colored("当前不在功能分支上", "yellow")
         elif choice == "3":
             version = input("请输入版本号: ")
-            execute_git_command(['checkout', '-b', f'release/{version}', 'develop'])
+            execute_git(['checkout', '-b', f'release/{version}', 'develop'])
         elif choice == "4":
             branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).decode().strip()
             if branch.startswith('release/'):
-                execute_git_command(['checkout', 'main'])
-                execute_git_command(['merge', '--no-ff', branch])
-                execute_git_command(['tag', '-a', branch.split('/')[-1], '-m', f'Release {branch.split("/")[-1]}'])
-                execute_git_command(['checkout', 'develop'])
-                execute_git_command(['merge', '--no-ff', branch])
+                execute_git(['checkout', 'main'])
+                execute_git(['merge', '--no-ff', branch])
+                execute_git(['tag', '-a', branch.split('/')[-1], '-m', f'Release {branch.split("/")[-1]}'])
+                execute_git(['checkout', 'develop'])
+                execute_git(['merge', '--no-ff', branch])
                 if confirm_action("是否删除发布分支？"):
-                    execute_git_command(['branch', '-d', branch])
+                    execute_git(['branch', '-d', branch])
             else:
                 print_colored("当前不在发布分支上", "yellow")
         elif choice == "5":
             name = input("请输入修复名称: ")
-            execute_git_command(['checkout', '-b', f'hotfix/{name}', 'main'])
+            execute_git(['checkout', '-b', f'hotfix/{name}', 'main'])
         elif choice == "6":
             branch = subprocess.check_output(['git', 'rev-parse', '--abbrev-ref', 'HEAD']).decode().strip()
             if branch.startswith('hotfix/'):
-                execute_git_command(['checkout', 'main'])
-                execute_git_command(['merge', '--no-ff', branch])
+                execute_git(['checkout', 'main'])
+                execute_git(['merge', '--no-ff', branch])
                 version = input("请输入修复版本号: ")
-                execute_git_command(['tag', '-a', version, '-m', f'Hotfix {version}'])
-                execute_git_command(['checkout', 'develop'])
-                execute_git_command(['merge', '--no-ff', branch])
+                execute_git(['tag', '-a', version, '-m', f'Hotfix {version}'])
+                execute_git(['checkout', 'develop'])
+                execute_git(['merge', '--no-ff', branch])
                 if confirm_action("是否删除修复分支？"):
-                    execute_git_command(['branch', '-d', branch])
+                    execute_git(['branch', '-d', branch])
             else:
                 print_colored("当前不在修复分支上", "yellow")
         else:
@@ -1790,16 +1747,16 @@ def handle_clean():
             return
         elif choice == "1":
             if confirm_action("确定要清理未跟踪的文件吗？"):
-                execute_git_command(['clean', '-f'])
+                execute_git(['clean', '-f'])
         elif choice == "2":
             if confirm_action("确定要清理已忽略的文件吗？"):
-                execute_git_command(['clean', '-f', '-X'])
+                execute_git(['clean', '-f', '-X'])
         elif choice == "3":
             if confirm_action("确定要清理所有未跟踪的文件和目录吗？"):
-                execute_git_command(['clean', '-f', '-d'])
+                execute_git(['clean', '-f', '-d'])
         elif choice == "4":
             print("\n预览清理效果:")
-            execute_git_command(['clean', '-n', '-d'])
+            execute_git(['clean', '-n', '-d'])
         else:
             print_colored("无效的选择，请重试", "yellow")
             continue
@@ -1826,13 +1783,13 @@ def handle_checkout():
             return
         elif choice == "1":
             branch = input("请输入要切换到的分支名: ")
-            execute_git_command(['checkout', branch])
+            execute_git(['checkout', branch])
         elif choice == "2":
             branch = input("请输入新分支名: ")
-            execute_git_command(['checkout', '-b', branch])
+            execute_git(['checkout', '-b', branch])
         elif choice == "3":
             commit = input("请输入提交ID: ")
-            execute_git_command(['checkout', commit])
+            execute_git(['checkout', commit])
         else:
             print_colored("无效的选择，请重试", "yellow")
             continue
@@ -1859,12 +1816,12 @@ def handle_merge():
             return
         elif choice == "1":
             branch = input("请输入要合并的分支名: ")
-            execute_git_command(['merge', branch])
+            execute_git(['merge', branch])
         elif choice == "2":
             branch = input("请输入要合并的分支名: ")
-            execute_git_command(['merge', '--squash', branch])
+            execute_git(['merge', '--squash', branch])
         elif choice == "3":
-            execute_git_command(['merge', '--abort'])
+            execute_git(['merge', '--abort'])
         else:
             print_colored("无效的选择，请重试", "yellow")
             continue
@@ -1891,12 +1848,45 @@ def handle_rebase():
             return
         elif choice == "1":
             branch = input("请输入目标分支名: ")
-            execute_git_command(['rebase', branch])
+            execute_git(['rebase', branch])
         elif choice == "2":
             commit = input("请输入起始提交 (HEAD~n): ")
-            execute_git_command(['rebase', '-i', commit])
+            execute_git(['rebase', '-i', commit])
         elif choice == "3":
-            execute_git_command(['rebase', '--abort'])
+            execute_git(['rebase', '--abort'])
+        else:
+            print_colored("无效的选择，请重试", "yellow")
+            continue
+        
+        input("\n按回车键继续...")
+
+def handle_init():
+    """
+    处理仓库初始化
+    @return: None
+    """
+    while True:
+        print("\n" + "="*40)
+        print_colored("初始化仓库", "cyan")
+        print("="*40)
+        print("1. 在当前目录初始化")
+        print("2. 在新目录初始化")
+        print("\n0. 返回主菜单")
+        
+        choice = input("\n请选择 (0-2): ")
+        
+        if choice == "0":
+            return
+        elif choice == "1":
+            if confirm_action("确定要在当前目录初始化 Git 仓库吗？"):
+                execute_git(['init'])
+        elif choice == "2":
+            dir_name = input("请输入目录名: ")
+            if dir_name:
+                os.makedirs(dir_name, exist_ok=True)
+                os.chdir(dir_name)
+                execute_git(['init'])
+                print_colored(f"\n已在 {dir_name} 目录初始化 Git 仓库", "green")
         else:
             print_colored("无效的选择，请重试", "yellow")
             continue
@@ -1909,14 +1899,10 @@ def main():
     @return: None
     """
     try:
-        # 清屏
-        os.system('cls' if os.name == 'nt' else 'clear')
-        
         while True:
             show_menu()
             choice = input("\n请输入选项: ").lower()
             
-            # 清屏
             os.system('cls' if os.name == 'nt' else 'clear')
             
             if choice == 'h':
@@ -1926,58 +1912,48 @@ def main():
                     print_colored("\n感谢使用，再见！", "green")
                     break
             elif choice == "1":
-                handle_status()
+                handle_init()
             elif choice == "2":
-                handle_add()
+                url = input("\n请输入仓库地址: ")
+                execute_git(['clone', url])
             elif choice == "3":
-                handle_commit()
+                handle_status()
             elif choice == "4":
-                handle_log()
+                handle_add()
             elif choice == "5":
-                handle_push()
+                handle_commit()
             elif choice == "6":
-                handle_pull()
+                handle_push()
             elif choice == "7":
-                handle_clone()
+                handle_pull()
             elif choice == "8":
-                handle_remote()
-            elif choice == "9":
                 handle_branch()
-            elif choice == "10":
+            elif choice == "9":
                 handle_checkout()
-            elif choice == "11":
+            elif choice == "10":
                 handle_merge()
+            elif choice == "11":
+                handle_rebase()
             elif choice == "12":
-                handle_config()
+                handle_remote()
             elif choice == "13":
                 handle_tag()
             elif choice == "14":
                 handle_stash()
             elif choice == "15":
-                handle_advanced()
+                handle_reset()
             elif choice == "16":
-                handle_recovery()
+                handle_revert()
             elif choice == "17":
-                handle_settings()
-            elif choice == "18":
-                handle_logs()
-            elif choice == "19":
-                check_update()
-            elif choice == "m":
-                handle_menu_mode()
-            elif choice == "c":
-                handle_custom_menu()
+                handle_clean()
             else:
                 print_colored("无效的选择，请重试", "yellow")
                 continue
             
-            # 每个操作后暂停
-            if choice not in ['0', 'h', 'm', 'c']:
+            if choice != '0':
                 input("\n按回车键继续...")
             
-            # 清屏
             os.system('cls' if os.name == 'nt' else 'clear')
-            
     except KeyboardInterrupt:
         print_colored("\n\n程序被中断，正在安全退出...", "yellow")
         sys.exit(0)

@@ -1,9 +1,7 @@
 # EzGit - 让 Git 操作变得简单
 
 EzGit 是一个用 Python 编写的 Git 命令行工具，旨在简化 Git 的日常操作，让版本控制变得更加简单和友好。
-
 ## 功能特点
-
 - 🌟 交互式菜单界面
 - 🎨 彩色命令输出
 - 🔧 常用 Git 操作封装
@@ -13,103 +11,111 @@ EzGit 是一个用 Python 编写的 Git 命令行工具，旨在简化 Git 的�
   
 ![image](https://github.com/user-attachments/assets/cba8bad3-b49a-4b1a-8e72-6cd3824471bc)
 
-## 基本功能
+## 完全新手指南
 
-- 仓库状态查看
-- 文件暂存管理
-- 提交更改
-- 历史记录查看
-- 远程仓库操作
-- 分支管理
-- 标签管理
+### 第一步：安装必要软件
 
-## 高级功能
+1. 安装 Python
+   - 访问 [Python官网](https://www.python.org/downloads/)
+   - 点击"Download Python"下载最新版本
+   - 运行安装程序
+   - ⚠️ 重要：安装时勾选"Add Python to PATH"选项
+   - 点击"Install Now"开始安装
+   - 等待安装完成
 
-- 储藏管理
-- 配置信息管理
-- 错误恢复
-- 差异比较
-- 工作流管理
-- 子模块管理
+2. 安装 Git
+   - 访问 [Git官网](https://git-scm.com/downloads)
+   - 下载对应系统的版本
+   - 运行安装程序，一路点"Next"即可
+   - 等待安装完成
 
-## 安装说明
+### 第二步：下载 EzGit
 
-1. 克隆仓库：
-```
+方法一：使用 Git（推荐）
+```bash
+# 打开命令提示符(CMD)或PowerShell，输入：
 git clone https://github.com/SoKeiKei/EzGit.git
 ```
 
-2. 安装可选依赖（推荐但不是必需）：
+方法二：直接下载
+- 访问 [EzGit主页](https://github.com/SoKeiKei/EzGit)
+- 点击绿色的"Code"按钮
+- 选择"Download ZIP"
+- 解压下载的文件
+
+### 第三步：运行 EzGit
+
+1. 进入程序目录
+```bash
+# 在命令提示符(CMD)或PowerShell中输入：
+cd EzGit  # 如果你在其他目录，需要输入完整路径
 ```
+
+2. 安装可选依赖（推荐但不是必需）
+```bash
 pip install -r requirements.txt
 ```
-- requests: 用于检查更新（可选）
-- colorama: Windows系统下的彩色输出支持（可选）
 
-3. 运行程序：
-```
+3. 运行程序
+```bash
 python EzGit.py
 ```
 
-## 使用说明
+### 基本操作说明
 
-### 基本操作
-- 使用数字键选择对应功能
-- 按 'h' 查看帮助信息
-- 按 '0' 退出程序
-- 按 'm' 切换菜单模式
-- 按 'c' 自定义菜单
+1. 选择功能
+   - 使用数字键选择对应功能
+   - 按回车确认
 
-### 菜单模式
-1. 完整模式
-   - 显示所有可用功能
-   - 适合熟悉 Git 的用户
-2. 简单模式
-   - 仅显示常用功能
-   - 适合新手用户
-3. 自定义模式
-   - 根据个人需求定制菜单
-   - 可添加/删除功能项
+2. 常用操作
+   - 1：查看仓库状态
+   - 2：暂存更改
+   - 3：提交更改
+   - 4：推送更改
+   - 5：拉取更新
 
-### 配置说明
-- 配置文件位置：~/.ezgit/
-  - config.json：工具配置
-  - menu_config.json：菜单配置
-- 可配置项：
-  - 主题颜色
-  - 默认分支
-  - 自动推送
-  - 作者信息
+3. 其他操作
+   - h：显示帮助
+   - 0：退出程序
 
-## 开发说明
+## 常见问题解答
 
-### 环境要求
-- Python 3.6+
-- Git 命令行工具
+### 1. 提示"python不是内部或外部命令"
+- 原因：Python未添加到系统PATH
+- 解决方法：重新安装Python，记得勾选"Add Python to PATH"
 
-### 测试运行
-- 运行测试：python test_ezgit.py
-- 测试内容：
-  - 文件结构完整性
-  - 基本功能可用性
-  - 高级功能实现
-  - 工具功能正常
-  - 辅助函数可用
+### 2. 提示"git不是内部或外部命令"
+- 原因：Git未添加到系统PATH
+- 解决方法：重新安装Git
 
-### 代码规范
-- 遵循 PEP 8 规范
-- 使用 JSDoc 风格注释
-- 函数必须有明确的返回值
+### 3. 提示"pip不是内部或外部命令"
+- 解决方法：使用 `python -m pip` 替代 `pip`
+```bash
+python -m pip install -r requirements.txt
+```
 
-## 依赖项目
+### 4. 运行时显示乱码
+- 解决方法：在命令提示符中输入：
+```bash
+chcp 65001
+```
 
-- requests：用于检查更新和网络请求
-- colorama：用于 Windows 系统下的彩色输出
+### 5. 其他问题
+- 访问 [Issues页面](https://github.com/SoKeiKei/EzGit/issues) 寻求帮助
 
-## 贡献指南
+## 进阶使用
 
-1. Fork [本仓库](https://github.com/SoKeiKei/EzGit)
-2. 创建特性分支
+当你熟悉了基本操作后，可以尝试：
+- 分支管理
+- 远程仓库操作
+- 标签管理
+- 配置管理
+- 自定义菜单
+
+## 贡献代码
+
+1. Fork 本仓库
+2. 创建新分支
 3. 提交更改
 4. 发起 Pull Request
 
@@ -130,3 +136,75 @@ MIT License
 - 支持自定义菜单配置
 - 添加多种菜单模式
 - 实现彩色输出支持
+
+## 使用方法
+
+### 方法一：作为独立工具使用（推荐新手）
+
+按照上面的"完全新手指南"操作即可。
+
+### 方法二：在任意项目中快速使用（推荐）
+
+1. 复制单文件版本
+   - 只需要复制 `EzGit.py` 文件到你的项目目录
+   - 特点：
+     * 单文件，无需安装，无需配置
+     * 即复制即用，不生成任何配置文件
+     * 轻量级，仅包含核心 Git 操作
+     * 可以复制到任何项目目录独立使用
+
+```bash
+# 使用方法
+# 1. 复制 EzGit.py 到任意项目目录
+# 2. 在该目录下运行：
+python EzGit.py
+```
+
+2. 创建命令行别名（可选）
+   
+Windows (在 PowerShell 中):
+```powershell
+# 添加别名到 PowerShell 配置
+Set-Alias -Name git-tool -Value "python C:\完整路径\EzGit.py"
+
+# 之后可以在任何目录使用：
+git-tool
+```
+
+Linux/Mac:
+```bash
+# 添加别名到 .bashrc 或 .zshrc
+alias git-tool="python /完整路径/EzGit.py"
+
+# 之后可以在任何目录使用：
+git-tool
+```
+
+### 功能说明
+
+1. 核心功能
+   - ✅ 基本的 Git 操作（status, add, commit, push, pull 等）
+   - ✅ 分支管理（创建、切换、合并等）
+   - ✅ 远程仓库操作（clone, remote 等）
+   - ✅ 交互式菜单界面
+   - ✅ 彩色输出支持
+
+2. 不包含的功能
+   - ❌ 配置文件管理
+   - ❌ 自动更新检查
+   - ❌ 自定义菜单
+   - ❌ 日志记录
+   - ❌ 多语言支持
+
+3. 优点
+   - 轻量级，单文件
+   - 无需配置
+   - 不生成额外文件
+   - 可以复制到任何项目使用
+   - 启动速度快
+
+4. 使用建议
+   - 适合日常 Git 操作
+   - 适合快速部署到新项目
+   - 适合团队共享使用
+   - 适合教学演示

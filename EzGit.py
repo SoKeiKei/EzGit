@@ -174,6 +174,7 @@ def show_help():
     print_colored("Version: 1.0.0", "purple")
     print_colored("Author: SoKei", "purple")
     print_colored("GitHub: https://github.com/SoKeiKei/EzGit", "purple")
+    print_colored("Last Update: 2025-03-09", "purple")  # 添加更新日期
     
     print("\n基本操作说明：")
     print("1. 使用数字键选择对应的功能")
@@ -517,11 +518,19 @@ def handle_remote():
 def handle_push():
     """
     处理git push命令
-    - 检查是否有未提交的更改
-    - 提供处理未提交更改的选项
-    - 执行推送操作
+    @return: None
     """
     try:
+        # 先检查是否有远程仓库配置
+        result = subprocess.run(['git', 'remote'], 
+                             capture_output=True, 
+                             text=True,
+                             encoding='utf-8')
+        if not result.stdout.strip():
+            print_colored("\n错误: 未配置远程仓库", "red")
+            print("提示: 请先使用 'git remote add' 添加远程仓库")
+            return
+
         # 检查是否有未提交的更改
         status_result = subprocess.run(['git', 'status', '--porcelain'], 
                                     capture_output=True, text=True)
@@ -536,7 +545,6 @@ def handle_push():
             choice = input("请选择 (1-4): ")
             
             if choice == "1":
-                # 暂存并正常提交
                 execute_git_command(['add', '.'])
                 commit_msg = input("请输入提交信息: ")
                 if not execute_git_command(['commit', '-m', commit_msg]):
@@ -544,15 +552,12 @@ def handle_push():
                     if input().lower() == 'y':
                         execute_git_command(['commit', '-m', commit_msg, '--no-verify'])
                     else:
-                        print("操作已取消")
                         return
             elif choice == "2":
-                # 暂存并跳过检查提交
                 execute_git_command(['add', '.'])
                 commit_msg = input("请输入提交信息: ")
                 execute_git_command(['commit', '-m', commit_msg, '--no-verify'])
             elif choice == "3":
-                # 储藏更改
                 print("储藏当前更改...")
                 execute_git_command(['stash'])
             elif choice == "4":
@@ -565,29 +570,53 @@ def handle_push():
         # 获取当前分支名
         current_branch = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], 
                                      capture_output=True, text=True).stdout.strip()
-        print(f"正在推送分支 '{current_branch}' 到远程仓库...")
+        print(f"\n正在推送分支 '{current_branch}' 到远程仓库...")
         
-        # 直接尝试推送到远程，设置上游分支
-        push_result = execute_git_command(['push', '--set-upstream', 'origin', current_branch])
+        # 尝试推送
+        push_result = subprocess.run(['git', 'push', 'origin', current_branch],
+                                  capture_output=True,
+                                  text=True,
+                                  encoding='utf-8')
         
-        if push_result:
-            print(f"成功推送分支 '{current_branch}' 到远程仓库")
-            
-            # 如果之前选择了储藏更改，现在恢复它们
-            if choice == "3":
-                print("恢复储藏的更改...")
-                execute_git_command(['stash', 'pop'])
-                print("如果有冲突，请手动解决后提交")
+        if push_result.returncode != 0:
+            error_msg = push_result.stderr.lower()
+            if "no upstream branch" in error_msg:
+                print_colored("\n首次推送分支，需要设置上游分支...", "yellow")
+                if confirm_action(f"是否将本地分支 '{current_branch}' 推送并设置为远程分支？"):
+                    execute_git_command(['push', '--set-upstream', 'origin', current_branch])
+            elif "repository not found" in error_msg:
+                print_colored("\n错误: 远程仓库不存在", "red")
+                print("可能的原因:")
+                print("1. 远程仓库URL配置错误")
+                print("2. 没有访问权限")
+                print("3. 仓库已被删除")
+                print("\n建议:")
+                print("- 检查远程仓库URL: git remote -v")
+                print("- 确认是否有访问权限")
+                print("- 联系仓库管理员")
+            elif "permission denied" in error_msg:
+                print_colored("\n错误: 没有推送权限", "red")
+                print("可能的原因:")
+                print("1. SSH密钥未配置")
+                print("2. 没有仓库的写入权限")
+                print("\n建议:")
+                print("- 检查SSH密钥配置")
+                print("- 确认仓库访问权限")
+            elif "non-fast-forward" in error_msg:
+                print_colored("\n错误: 远程分支有新的提交", "red")
+                print("建议:")
+                print("1. 先拉取远程更新: git pull")
+                print("2. 解决冲突后重新推送")
+                if confirm_action("是否立即拉取远程更新？"):
+                    execute_git_command(['pull'])
+            else:
+                print_colored(f"\n推送失败: {push_result.stderr}", "red")
         else:
-            print("推送失败，请检查以下可能的原因：")
-            print("1. 远程仓库是否已配置")
-            print("2. 是否有推送权限")
-            print("3. 网络连接是否正常")
-            print("\n可以使用以下命令检查远程仓库配置：")
-            print("选择选项 8 (git remote) 然后选择 1 查看远程仓库配置")
+            print_colored("\n推送成功！", "green")
             
     except Exception as e:
-        print(f"推送失败: {str(e)}")
+        print_colored(f"\n推送过程出错: {str(e)}", "red")
+        print("请检查网络连接和远程仓库配置")
 
 def handle_pull():
     """
@@ -1001,57 +1030,98 @@ def handle_recovery():
 
 def check_update():
     """
-    检查工具更新
-    @return: bool 是否有更新
+    检查程序更新
+    @return: None
     """
-    try:
-        # 尝试导入 requests
-        import requests
+    while True:
+        print("\n" + "="*40)
+        print_colored("检查更新", "cyan")
+        print("="*40)
         
-        response = requests.get('https://api.github.com/repos/SoKei/EzGit/releases/latest')
-        latest_version = response.json()['tag_name']
-        current_version = "1.0.0"  # 当前版本
+        print("\n1. 立即检查更新")
+        print("2. 访问项目主页")
+        print("3. 查看当前版本")
+        print("\n0. 返回上级菜单")
         
-        if latest_version > current_version:
-            print_colored(f"\n发现新版本: {latest_version}", "green")
-            print("更新内容:")
-            print(response.json()['body'])
-            return True
-        return False
-    except ImportError:
-        print_colored("\n提示: 如需使用自动更新检查功能，请安装 requests 库", "yellow")
-        print_colored("pip install requests", "yellow")
-        print_colored("您也可以直接访问 GitHub 页面检查更新:", "yellow")
-        print_colored("https://github.com/SoKei/EzGit/releases", "blue")
-        print("\n请选择操作：")
-        print("1. 安装 requests 库")
-        print("2. 访问 GitHub 页面手动检查更新")
-        print("0. 返回主菜单")
+        choice = input("\n请选择 (0-3): ")
         
-        choice = input("\n请选择 (0-2): ")
-        
-        if choice == "1":
+        if choice == "0":
+            return
+        elif choice == "1":
             try:
-                print_colored("\n正在安装 requests 库...", "cyan")
-                result = subprocess.run([sys.executable, '-m', 'pip', 'install', 'requests'],
-                                     capture_output=True,
-                                     text=True)
-                if result.returncode == 0:
-                    print_colored("安装成功！", "green")
-                    print("请重新执行检查更新操作")
-                else:
-                    print_colored("安装失败，请手动执行:", "red")
-                    print("pip install requests")
+                # 先检查是否安装了 requests
+                try:
+                    import requests
+                except ImportError:
+                    print_colored("\n检查更新需要安装 requests 模块", "yellow")
+                    print("\n您可以：")
+                    print("1. 手动访问项目主页检查更新")
+                    print("2. 安装 requests 模块启用自动检查")
+                    print("\n项目主页：")
+                    print_colored("https://github.com/SoKeiKei/EzGit/releases", "cyan")
+                    print("\n安装命令：")
+                    print_colored(f"{sys.executable} -m pip install requests", "cyan")
+                    continue
+
+                print_colored("\n正在检查更新...", "cyan")
+                
+                try:
+                    # 获取最新版本信息
+                    api_url = "https://api.github.com/repos/SoKeiKei/EzGit/releases/latest"
+                    response = requests.get(api_url, timeout=5)
+                    response.raise_for_status()  # 检查响应状态
+                    
+                    latest = response.json()
+                    latest_version = latest.get('tag_name', '').lstrip('v')
+                    current_version = "1.0.0"  # 当前版本号
+                    
+                    if not latest_version:
+                        print_colored("\n暂无发布版本", "yellow")
+                        return
+                        
+                    # 比较版本号
+                    if latest_version > current_version:
+                        print_colored(f"\n发现新版本: v{latest_version}", "green")
+                        print(f"当前版本: v{current_version}")
+                        print("\n更新内容:")
+                        print(latest.get('body', '暂无更新说明'))
+                        print("\n下载地址:")
+                        print(latest.get('html_url', 'https://github.com/SoKeiKei/EzGit/releases'))
+                    else:
+                        print_colored("\n当前已是最新版本！", "green")
+                        print(f"版本号: v{current_version}")
+                        
+                except requests.exceptions.RequestException as e:
+                    if "404" in str(e):
+                        print_colored("\n暂无发布版本", "yellow")
+                    else:
+                        print_colored(f"\n检查更新失败: 网络错误", "red")
+                        print(f"错误信息: {str(e)}")
+                except Exception as e:
+                    print_colored(f"\n检查更新失败: {str(e)}", "red")
+                    
             except Exception as e:
-                print_colored(f"安装过程出错: {str(e)}", "red")
+                print_colored(f"\n检查更新功能异常: {str(e)}", "red")
         elif choice == "2":
-            print_colored("\n请访问以下地址检查更新:", "cyan")
-            print_colored("https://github.com/SoKei/EzGit/releases", "blue")
+            print_colored("\n项目主页：", "cyan")
+            print("https://github.com/SoKeiKei/EzGit")
+            print("\n发布页面：")
+            print("https://github.com/SoKeiKei/EzGit/releases")
+        elif choice == "3":
+            print_colored("\n当前版本信息：", "cyan")
+            print("版本号: v1.0.0")
+            print("发布日期: 2024-03-09")
+            print("\n主要功能：")
+            print("- 基本的 Git 操作功能")
+            print("- 交互式菜单界面")
+            print("- 自定义菜单配置")
+            print("- 多种菜单模式")
+            print("- 彩色输出支持")
+        else:
+            print_colored("\n无效的选择，请重试", "yellow")
+            continue
         
-        return False
-    except Exception as e:
-        print_colored(f"检查更新失败: {str(e)}", "red")
-        return False
+        input("\n按回车键继续...")
 
 def check_dependencies():
     """

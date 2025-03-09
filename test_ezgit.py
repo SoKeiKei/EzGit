@@ -200,6 +200,29 @@ def test_file_structure():
         log_to_file(f"文件结构测试出错: {str(e)}", "ERROR")
         return False
 
+def test_version():
+    """
+    测试版本号
+    @return: bool 测试是否通过
+    """
+    expected_version = "1.0.1"
+    # 检查 show_help 函数中的版本号
+    with open("EzGit.py", "r", encoding="utf-8") as f:
+        content = f.read()
+        if f'Version: {expected_version}' not in content:
+            log_to_file(f"[×] EzGit.py 中的版本号不是 {expected_version}", "WARN")
+            return False
+    
+    # 检查 README.md 中的版本号
+    with open("README.md", "r", encoding="utf-8") as f:
+        content = f.read()
+        if f'当前版本: v{expected_version}' not in content:
+            log_to_file(f"[×] README.md 中的版本号不是 {expected_version}", "WARN")
+            return False
+    
+    log_to_file(f"[√] 版本号检查通过: {expected_version}")
+    return True
+
 def run_test():
     """
     运行所有测试
@@ -219,6 +242,7 @@ def run_test():
     
     # 运行所有测试
     tests = [
+        ("版本号检查", test_version),
         ("文件结构测试", test_file_structure),
         ("基本功能测试", test_basic_functions),
         ("分支功能测试", test_branch_functions),

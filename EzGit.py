@@ -115,10 +115,10 @@ def show_help():
     @return: None
     """
     print_colored("\n=== EzGit 使用帮助 ===", "cyan")
-    print_colored("Version: 1.0.0", "purple")
+    print_colored("Version: 1.0.1", "purple")  # 更新版本号
     print_colored("Author: SoKei", "purple")
     print_colored("GitHub: https://github.com/SoKeiKei/EzGit", "purple")
-    print_colored("Last Update: 2025-03-09", "purple")  # 添加更新日期
+    print_colored("Last Update: 2025-03-10", "purple")
     
     print("\n基本操作说明：")
     print("1. 使用数字键选择对应的功能")

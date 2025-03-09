@@ -520,103 +520,104 @@ def handle_push():
     处理git push命令
     @return: None
     """
-    try:
-        # 先检查是否有远程仓库配置
-        result = subprocess.run(['git', 'remote'], 
-                             capture_output=True, 
-                             text=True,
-                             encoding='utf-8')
-        if not result.stdout.strip():
-            print_colored("\n错误: 未配置远程仓库", "red")
-            print("提示: 请先使用 'git remote add' 添加远程仓库")
+    while True:
+        print("\n" + "="*40)
+        print_colored("推送更改", "cyan")
+        print("="*40)
+        
+        print("\n1. 正常推送")
+        print("2. 强制推送(慎用)")
+        print("3. 先拉取后推送")
+        print("\n0. 返回上级菜单")
+        
+        choice = input("\n请选择 (0-3): ")
+        
+        if choice == "0":
             return
+        elif choice in ["1", "2", "3"]:
+            try:
+                # 先检查是否有远程仓库配置
+                result = subprocess.run(['git', 'remote'], 
+                                    capture_output=True, 
+                                    text=True,
+                                    encoding='utf-8')
+                if not result.stdout.strip():
+                    print_colored("\n错误: 未配置远程仓库", "red")
+                    print("提示: 请先使用 'git remote add' 添加远程仓库")
+                    continue
 
-        # 检查是否有未提交的更改
-        status_result = subprocess.run(['git', 'status', '--porcelain'], 
-                                    capture_output=True, text=True)
-        
-        if status_result.stdout.strip():
-            print("\n检测到未提交的更改！请选择处理方式：")
-            print("1. 暂存并提交更改")
-            print("2. 暂存并提交更改 (跳过检查)")
-            print("3. 暂时储藏更改(stash)")
-            print("4. 取消操作")
-            
-            choice = input("请选择 (1-4): ")
-            
-            if choice == "1":
-                execute_git_command(['add', '.'])
-                commit_msg = input("请输入提交信息: ")
-                if not execute_git_command(['commit', '-m', commit_msg]):
-                    print("\n正常提交失败，是否尝试跳过检查提交？(y/n): ")
-                    if input().lower() == 'y':
-                        execute_git_command(['commit', '-m', commit_msg, '--no-verify'])
+                # 获取当前分支名
+                current_branch = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], 
+                                            capture_output=True, text=True).stdout.strip()
+                
+                if choice == "1":
+                    print(f"\n正在推送分支 '{current_branch}' 到远程仓库...")
+                    push_result = subprocess.run(['git', 'push', 'origin', current_branch],
+                                            capture_output=True,
+                                            text=True,
+                                            encoding='utf-8')
+                elif choice == "2":
+                    if confirm_action("\n警告：强制推送可能会覆盖远程仓库的更改，确定要继续吗？"):
+                        print(f"\n正在强制推送分支 '{current_branch}' 到远程仓库...")
+                        push_result = subprocess.run(['git', 'push', '-f', 'origin', current_branch],
+                                                capture_output=True,
+                                                text=True,
+                                                encoding='utf-8')
                     else:
-                        return
-            elif choice == "2":
-                execute_git_command(['add', '.'])
-                commit_msg = input("请输入提交信息: ")
-                execute_git_command(['commit', '-m', commit_msg, '--no-verify'])
-            elif choice == "3":
-                print("储藏当前更改...")
-                execute_git_command(['stash'])
-            elif choice == "4":
-                print("操作已取消")
-                return
-            else:
-                print("无效的选择")
-                return
-
-        # 获取当前分支名
-        current_branch = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], 
-                                     capture_output=True, text=True).stdout.strip()
-        print(f"\n正在推送分支 '{current_branch}' 到远程仓库...")
-        
-        # 尝试推送
-        push_result = subprocess.run(['git', 'push', 'origin', current_branch],
-                                  capture_output=True,
-                                  text=True,
-                                  encoding='utf-8')
-        
-        if push_result.returncode != 0:
-            error_msg = push_result.stderr.lower()
-            if "no upstream branch" in error_msg:
-                print_colored("\n首次推送分支，需要设置上游分支...", "yellow")
-                if confirm_action(f"是否将本地分支 '{current_branch}' 推送并设置为远程分支？"):
-                    execute_git_command(['push', '--set-upstream', 'origin', current_branch])
-            elif "repository not found" in error_msg:
-                print_colored("\n错误: 远程仓库不存在", "red")
-                print("可能的原因:")
-                print("1. 远程仓库URL配置错误")
-                print("2. 没有访问权限")
-                print("3. 仓库已被删除")
-                print("\n建议:")
-                print("- 检查远程仓库URL: git remote -v")
-                print("- 确认是否有访问权限")
-                print("- 联系仓库管理员")
-            elif "permission denied" in error_msg:
-                print_colored("\n错误: 没有推送权限", "red")
-                print("可能的原因:")
-                print("1. SSH密钥未配置")
-                print("2. 没有仓库的写入权限")
-                print("\n建议:")
-                print("- 检查SSH密钥配置")
-                print("- 确认仓库访问权限")
-            elif "non-fast-forward" in error_msg:
-                print_colored("\n错误: 远程分支有新的提交", "red")
-                print("建议:")
-                print("1. 先拉取远程更新: git pull")
-                print("2. 解决冲突后重新推送")
-                if confirm_action("是否立即拉取远程更新？"):
-                    execute_git_command(['pull'])
-            else:
-                print_colored(f"\n推送失败: {push_result.stderr}", "red")
+                        continue
+                else:  # choice == "3"
+                    print(f"\n正在拉取远程分支 '{current_branch}' 的更新...")
+                    pull_result = subprocess.run(['git', 'pull', 'origin', current_branch],
+                                            capture_output=True,
+                                            text=True,
+                                            encoding='utf-8')
+                    if pull_result.returncode != 0:
+                        print_colored("\n拉取失败，可能存在冲突需要手动解决", "red")
+                        print("建议操作：")
+                        print("1. 使用 'git status' 查看冲突文件")
+                        print("2. 手动解决冲突")
+                        print("3. 使用 'git add' 标记解决完成")
+                        print("4. 使用 'git commit' 提交解决结果")
+                        continue
+                    
+                    print(f"\n正在推送分支 '{current_branch}' 到远程仓库...")
+                    push_result = subprocess.run(['git', 'push', 'origin', current_branch],
+                                            capture_output=True,
+                                            text=True,
+                                            encoding='utf-8')
+                
+                if push_result.returncode != 0:
+                    error_msg = push_result.stderr.lower()
+                    if "fetch first" in error_msg:
+                        print_colored("\n推送失败：远程仓库有新的更改", "red")
+                        print("\n解决方案：")
+                        print("1. 使用选项 3 '先拉取后推送'")
+                        print("2. 如果确定要覆盖远程更改，可以使用选项 2 '强制推送'")
+                    elif "repository not found" in error_msg:
+                        print_colored("\n错误: 远程仓库不存在", "red")
+                        print("可能的原因:")
+                        print("1. 远程仓库URL配置错误")
+                        print("2. 没有访问权限")
+                        print("3. 仓库已被删除")
+                    elif "permission denied" in error_msg:
+                        print_colored("\n错误: 没有推送权限", "red")
+                        print("可能的原因:")
+                        print("1. SSH密钥未配置")
+                        print("2. 没有仓库的写入权限")
+                    else:
+                        print_colored(f"\n推送失败: {push_result.stderr}", "red")
+                else:
+                    print_colored("\n推送成功！", "green")
+                    return
+                    
+            except Exception as e:
+                print_colored(f"\n推送过程出错: {str(e)}", "red")
+                print("请检查网络连接和远程仓库配置")
         else:
-            print_colored("\n推送成功！", "green")
-            
-    except Exception as e:
-        print_colored(f"\n推送过程出错: {str(e)}", "red")
-        print("请检查网络连接和远程仓库配置")
+            print_colored("\n无效的选择，请重试", "yellow")
+            continue
+        
+        input("\n按回车键继续...")
 
 def handle_pull():
     """

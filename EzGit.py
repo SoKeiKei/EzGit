@@ -439,10 +439,140 @@ def handle_push():
     处理推送操作
     @return: None
     """
-    if execute_git(['push']):
-        print_colored("\n✓ 推送成功!", "green")
-        # 显示最新提交信息
-        execute_git(['log', '-1', '--oneline'])
+    while True:
+        print("\n" + "="*40)
+        print_colored("推送更改", "cyan")
+        print("="*40)
+        print("1. 推送当前分支")
+        print("2. 推送所有分支")
+        print("3. 推送标签")
+        print("\n0. 返回主菜单")
+
+        choice = input("\n请选择 (0-3): ")
+
+        if choice == "0":
+            return
+        elif choice == "1":
+            # 获取当前分支名
+            result = subprocess.run(['git', 'rev-parse', '--abbrev-ref', 'HEAD'], 
+                                 capture_output=True, text=True, encoding='utf-8')
+            if result.returncode == 0:
+                branch = result.stdout.strip()
+                print(f"\n当前分支: {branch}")
+                # 检查是否有未暂存的更改
+                status = subprocess.run(['git', 'status', '--porcelain'], 
+                                     capture_output=True, text=True, encoding='utf-8')
+                if status.stdout.strip():
+                    print_colored("\n× 检测到未暂存的更改", "yellow")
+                    print("\n选择操作:")
+                    print("1. 暂存并提交更改")
+                    print("2. 储藏更改")
+                    print("3. 放弃更改")
+                    print("4. 返回主菜单")
+                    
+                    subchoice = input("\n请选择 (1-4): ")
+                    if subchoice == "1":
+                        execute_git(['add', '.'])
+                        message = input("\n请输入提交信息: ")
+                        if execute_git(['commit', '-m', message]):
+                            print_colored("\n✓ 成功提交更改", "green")
+                        else:
+                            print_colored("\n× 提交失败", "red")
+                            continue
+                    elif subchoice == "2":
+                        message = input("\n请输入储藏说明(可选): ")
+                        if execute_git(['stash', 'save', message]):
+                            print_colored("\n✓ 成功储藏更改", "green")
+                        else:
+                            print_colored("\n× 储藏失败", "red")
+                            continue
+                    elif subchoice == "3":
+                        if confirm_action("警告：这将丢失所有未保存的更改！确定要继续吗？"):
+                            execute_git(['checkout', '.'])
+                            print_colored("\n✓ 已放弃所有更改", "green")
+                        else:
+                            continue
+                    else:
+                        continue
+
+                # 尝试推送
+                result = execute_git(['push', 'origin', branch])
+                if result:
+                    print_colored(f"\n✓ 成功推送分支 {branch} 到远程仓库", "green")
+                    execute_git(['log', '-1', '--oneline'])
+                else:
+                    # 检查是否是因为需要先拉取更新
+                    pull_needed = subprocess.run(['git', 'remote', 'show', 'origin'], 
+                                              capture_output=True, text=True, encoding='utf-8')
+                    if "local out of date" in pull_needed.stdout:
+                        print_colored("\n× 推送失败: 远程仓库有新的更新", "yellow")
+                        print("\n选择操作:")
+                        print("1. 拉取更新并重新推送")
+                        print("2. 返回主菜单")
+                        
+                        subchoice = input("\n请选择 (1-2): ")
+                        if subchoice == "1":
+                            if execute_git(['pull', 'origin', branch]):
+                                print_colored("\n✓ 成功拉取更新", "green")
+                                if execute_git(['push', 'origin', branch]):
+                                    print_colored(f"\n✓ 成功推送分支 {branch} 到远程仓库", "green")
+                                    execute_git(['log', '-1', '--oneline'])
+                                else:
+                                    print_colored("\n× 推送失败，可能存在冲突，请手动解决", "red")
+                            else:
+                                print_colored("\n× 拉取更新失败，请先处理本地更改", "red")
+                        continue
+                    else:
+                        print_colored("\n× 推送失败，请检查以下可能的原因:", "red")
+                        print("1. 远程仓库地址是否正确")
+                        print("2. 是否有推送权限")
+                        print("3. 网络连接是否正常")
+            else:
+                print_colored("\n× 获取当前分支失败", "red")
+        elif choice == "2":
+            result = execute_git(['push', '--all', 'origin'])
+            if result:
+                print_colored("\n✓ 成功推送所有分支到远程仓库", "green")
+                # 显示推送的分支列表
+                execute_git(['branch', '-r'])
+            else:
+                print_colored("\n× 推送失败，是否需要先更新？", "yellow")
+                print("\n选择操作:")
+                print("1. 拉取所有更新并重新推送")
+                print("2. 返回主菜单")
+                
+                subchoice = input("\n请选择 (1-2): ")
+                if subchoice == "1":
+                    if execute_git(['fetch', '--all']):
+                        print_colored("\n✓ 成功拉取所有更新", "green")
+                        if execute_git(['push', '--all', 'origin']):
+                            print_colored("\n✓ 成功推送所有分支到远程仓库", "green")
+                            execute_git(['branch', '-r'])
+                        else:
+                            print_colored("\n× 推送失败，请手动检查各分支状态", "red")
+                    else:
+                        print_colored("\n× 拉取更新失败", "red")
+                continue
+        elif choice == "3":
+            print("\n当前标签列表:")
+            execute_git(['tag', '-l'])
+            tag = input("\n请输入要推送的标签名(回车推送所有标签): ")
+            if tag:
+                result = execute_git(['push', 'origin', tag])
+                if result:
+                    print_colored(f"\n✓ 成功推送标签 {tag} 到远程仓库", "green")
+                else:
+                    print_colored(f"\n× 推送标签失败，请检查标签名是否正确", "red")
+            else:
+                result = execute_git(['push', '--tags', 'origin'])
+                if result:
+                    print_colored("\n✓ 成功推送所有标签到远程仓库", "green")
+                else:
+                    print_colored("\n× 推送标签失败，请检查是否有标签存在", "red")
+        else:
+            print_colored("无效的选择", "yellow")
+            continue
+
         input("\n按回车键继续...")
 
 def handle_pull():

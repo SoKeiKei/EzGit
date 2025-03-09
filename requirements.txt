@@ -1,0 +1,5 @@
+# 可选依赖
+# requests: 用于检查更新功能
+# colorama: Windows系统下的彩色输出支持
+requests>=2.25.1
+colorama>=0.4.4 
